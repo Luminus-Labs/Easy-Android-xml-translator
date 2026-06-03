@@ -4,495 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Android Strings Translator</title>
-
-<style>
-* { box-sizing: border-box; }
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  margin: 0;
-  padding: 20px;
-  background: #f5f5f5;
-  color: #333;
-}
-
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  padding: 20px;
-}
-
-header {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 15px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 24px;
-  flex: 1;
-  min-width: 200px;
-}
-
-.controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-}
-
-select, input[type="text"], button {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: inherit;
-}
-
-select {
-  min-width: 120px;
-}
-
-input[type="text"] {
-  min-width: 200px;
-}
-
-button {
-  background: #0366d6;
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-button:hover {
-  background: #0256b8;
-}
-
-button:active {
-  opacity: 0.8;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.filter-badge {
-  background: #e1e4e8;
-  color: #24292e;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.stats {
-  font-size: 13px;
-  color: #666;
-  display: flex;
-  gap: 16px;
-}
-
-.status {
-  color: #0366d6;
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.legend {
-  display: flex;
-  gap: 16px;
-  margin-top: 12px;
-  font-size: 12px;
-  flex-wrap: wrap;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 2px;
-  border: 1px solid #ddd;
-}
-
-.filter-section {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 12px 0;
-  border-top: 1px solid #eee;
-}
-
-.filter-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  background: white;
-  color: #0366d6;
-  border: 1px solid #0366d6;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.filter-btn.active {
-  background: #0366d6;
-  color: white;
-}
-
-.filter-btn:hover {
-  background: #f0f5ff;
-}
-
-.filter-btn.active:hover {
-  background: #0256b8;
-}
-
-.search-box {
-  flex: 1;
-  min-width: 200px;
-}
-
-.search-box input {
-  width: 100%;
-}
-
-.table-wrapper {
-  overflow-x: auto;
-  margin-top: 20px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-thead {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #f6f8fa;
-}
-
-th {
-  border: 1px solid #d1d5da;
-  padding: 12px;
-  text-align: left;
-  font-weight: 600;
-  color: #24292e;
-  background: #f6f8fa;
-}
-
-td {
-  border: 1px solid #e1e4e8;
-  padding: 12px;
-  vertical-align: top;
-}
-
-tr.row-missing {
-  background: #ffeef0;
-}
-
-tr.row-missing:hover {
-  background: #ffd9e3;
-}
-
-tr.row-ok {
-  background: #f0fff4;
-}
-
-tr.row-ok:hover {
-  background: #dcffed;
-}
-
-tr.row-outdated {
-  background: #fffbea;
-}
-
-tr.row-outdated:hover {
-  background: #fff7d6;
-}
-
-tr.row-placeholder-issue {
-  background: #fff1f0;
-}
-
-tr.row-placeholder-issue:hover {
-  background: #ffd9d6;
-}
-
-.key-cell {
-  font-weight: 600;
-  color: #24292e;
-  max-width: 200px;
-  word-break: break-word;
-}
-
-.badge {
-  display: inline-block;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  margin-left: 8px;
-  margin-top: 4px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.badge-missing {
-  background: #d73a49;
-  color: white;
-}
-
-.badge-ok {
-  background: #28a745;
-  color: white;
-}
-
-.badge-outdated {
-  background: #ffc53b;
-  color: #24292e;
-}
-
-.badge-placeholder-issue {
-  background: #d73a49;
-  color: white;
-}
-
-.text-cell {
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 13px;
-  background: #fafbfc;
-  color: #24292e;
-  max-width: 300px;
-  word-break: break-word;
-  white-space: pre-wrap;
-  max-height: 150px;
-  overflow-y: auto;
-  border-radius: 3px;
-  padding: 8px;
-  border: 1px solid #e1e4e8;
-}
-
-.translation-cell input {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #d1d5da;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 14px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.translation-cell input:focus {
-  outline: none;
-  border-color: #0366d6;
-  box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #666;
-}
-
-.empty-state h3 {
-  font-size: 18px;
-  margin-bottom: 8px;
-}
-
-.empty-state p {
-  font-size: 14px;
-  margin: 0;
-}
-
-.error-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #d73a49;
-}
-
-.error-state h3 {
-  font-size: 18px;
-  margin-bottom: 8px;
-}
-
-.error-state p {
-  font-size: 14px;
-  margin: 8px 0;
-  font-family: monospace;
-  background: #fff1f0;
-  padding: 8px;
-  border-radius: 4px;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.tooltip {
-  position: relative;
-  display: inline-block;
-}
-
-.tooltip .tooltiptext {
-  visibility: hidden;
-  width: 200px;
-  background-color: #333;
-  color: #fff;
-  text-align: center;
-  border-radius: 6px;
-  padding: 8px;
-  position: absolute;
-  z-index: 1;
-  bottom: 125%;
-  left: 50%;
-  margin-left: -100px;
-  opacity: 0;
-  transition: opacity 0.3s;
-  font-size: 12px;
-  font-family: 'Monaco', monospace;
-}
-
-.tooltip:hover .tooltiptext {
-  visibility: visible;
-  opacity: 1;
-}
-
-.outdated-diff {
-  font-size: 12px;
-  color: #d73a49;
-  margin-top: 4px;
-  font-family: monospace;
-}
-
-.config-info {
-  font-size: 12px;
-  color: #666;
-  background: #f6f8fa;
-  padding: 8px;
-  border-radius: 4px;
-  margin-bottom: 12px;
-}
-
-@media (max-width: 768px) {
-  .container {
-    padding: 12px;
-  }
-
-  header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  h1 {
-    width: 100%;
-  }
-
-  .controls {
-    width: 100%;
-    flex-direction: column;
-  }
-
-  label, select, input[type="text"], button {
-    width: 100%;
-  }
-
-  .filter-section {
-    flex-direction: column;
-  }
-
-  .filter-buttons {
-    width: 100%;
-  }
-
-  .filter-btn {
-    flex: 1;
-    min-width: 80px;
-  }
-
-  .search-box {
-    width: 100%;
-  }
-
-  .text-cell {
-    max-width: 150px;
-    font-size: 12px;
-  }
-
-  th, td {
-    padding: 8px;
-    font-size: 12px;
-  }
-
-  .key-cell {
-    max-width: 100px;
-  }
-
-  .config-info {
-    font-size: 11px;
-  }
-}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<div class="theme-toggle">
+  <button class="theme-toggle-btn"></button>
+</div>
+
 <div class="container">
-  <header>
+  <div class="navbar">
     <h1>🌍 Android Strings Translator</h1>
+    <div class="navbar-spacer"></div>
+    <a href="index.html" class="active">Translator</a>
+    <a href="generator.html">URL Generator</a>
+  </div>
+
+  <header>
     <div class="controls">
-      <button id="loadBtn" onclick="app.load()">Load</button>
-      <button id="emailBtn" onclick="app.sendEmail()" disabled>Send via Email</button>
+      <button id="loadBtn" onclick="app.load()" class="btn-primary">Load</button>
+      <button id="emailBtn" onclick="app.sendEmail()" class="btn-primary" disabled>Send via Email</button>
     </div>
   </header>
 
-  <div class="config-info" id="configInfo" style="display:none;"></div>
-
   <div class="legend">
     <div class="legend-item">
-      <div class="legend-color" style="background: #f0fff4;"></div>
+      <div class="legend-color" style="background: rgba(40, 167, 69, 0.15);"></div>
       <span>Translated</span>
     </div>
     <div class="legend-item">
-      <div class="legend-color" style="background: #ffeef0;"></div>
+      <div class="legend-color" style="background: rgba(215, 58, 73, 0.15);"></div>
       <span>Missing</span>
     </div>
     <div class="legend-item">
-      <div class="legend-color" style="background: #fffbea;"></div>
+      <div class="legend-color" style="background: rgba(255, 193, 59, 0.15);"></div>
       <span>Outdated</span>
     </div>
     <div class="legend-item">
-      <div class="legend-color" style="background: #fff1f0;"></div>
+      <div class="legend-color" style="background: rgba(255, 107, 107, 0.15);"></div>
       <span>Placeholder Issue</span>
     </div>
   </div>
@@ -515,6 +65,8 @@ tr.row-placeholder-issue:hover {
     <span id="statsOutdated">Outdated: 0</span>
     <span id="statusMsg" class="status">Idle</span>
   </div>
+
+  <div class="config-info" id="configInfo"></div>
 
   <div class="table-wrapper">
     <table>
@@ -540,6 +92,7 @@ tr.row-placeholder-issue:hover {
   </div>
 </div>
 
+<script src="theme.js"></script>
 <script>
 
 /* =========================
@@ -598,7 +151,7 @@ function showConfigInfo() {
     Source: <code>${CONFIG.SOURCE_URL.substring(0, 60)}...</code>
     ${CONFIG.TARGET_URL ? ` | Target: <code>${CONFIG.TARGET_URL.substring(0, 60)}...</code>` : ''}
   `;
-  info.style.display = 'block';
+  info.classList.add('show');
 }
 
 function showError(message) {
@@ -615,21 +168,16 @@ function showError(message) {
 ========================= */
 
 const app = {
-  base: {},           // key -> { text, hash }
-  translated: {},     // key -> translation
-  filteredKeys: [],   // currently displayed keys
-  filter: "all",      // 'all', 'missing', 'outdated', 'needs-work'
+  base: {},
+  translated: {},
+  filteredKeys: [],
+  filter: "all",
   searchTerm: "",
   editingKey: null,
   saveTimeout: null,
   loaded: false,
 
-  /* =========================
-     INIT
-  ========================= */
-
   init() {
-    // Validate configuration
     const errors = validateConfig();
     if (errors.length > 0) {
       showError(errors.join("<br>"));
@@ -638,10 +186,6 @@ const app = {
     
     showConfigInfo();
   },
-
-  /* =========================
-     XML PARSER
-  ========================= */
 
   parseXML(text) {
     const parser = new DOMParser();
@@ -653,7 +197,6 @@ const app = {
 
     const map = {};
 
-    // Parse <string> elements
     xml.querySelectorAll("string").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
@@ -661,7 +204,6 @@ const app = {
       }
     });
 
-    // Parse <plurals> elements (basic support)
     xml.querySelectorAll("plurals").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
@@ -673,7 +215,6 @@ const app = {
       }
     });
 
-    // Parse <string-array> elements (basic support)
     xml.querySelectorAll("string-array").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
@@ -688,10 +229,6 @@ const app = {
     return map;
   },
 
-  /* =========================
-     HASH GENERATION (PER-KEY TRACKING)
-  ========================= */
-
   hashString(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -702,10 +239,6 @@ const app = {
     return Math.abs(hash).toString(36);
   },
 
-  /* =========================
-     LOAD
-  ========================= */
-
   async load() {
     this.setStatus("Loading...");
     this.lock();
@@ -713,18 +246,15 @@ const app = {
     try {
       const lang = CONFIG.LANGUAGE;
 
-      // Fetch base English strings
       const res = await fetch(CONFIG.SOURCE_URL);
       if (!res.ok) throw new Error(`Failed to load source XML (${res.status})`);
       
       const baseText = await res.text();
       const baseParsed = this.parseXML(baseText);
 
-      // Load previous state from storage
       const stored = this.getStoredState(lang);
       const previousBase = stored.basePerKey || {};
 
-      // Initialize base with per-key hashing
       this.base = {};
       Object.keys(baseParsed).forEach(key => {
         const text = baseParsed[key];
@@ -732,7 +262,6 @@ const app = {
         this.base[key] = { text, hash };
       });
 
-      // Load or initialize translations
       this.translated = {};
       if (CONFIG.TARGET_URL) {
         try {
@@ -741,15 +270,12 @@ const app = {
             this.translated = this.parseXML(await tRes.text());
           }
         } catch (e) {
-          // Translation file not found, use stored translations
           this.translated = stored.translations || {};
         }
       } else {
-        // Use stored translations if no target URL provided
         this.translated = stored.translations || {};
       }
 
-      // Save current state
       this.saveState(lang);
       this.loaded = true;
       this.render();
@@ -762,10 +288,6 @@ const app = {
       this.unlock();
     }
   },
-
-  /* =========================
-     STORAGE (PER-LANGUAGE)
-  ========================= */
 
   getStoredState(lang) {
     const key = CONFIG.STORAGE_PREFIX + lang;
@@ -785,10 +307,6 @@ const app = {
     };
     localStorage.setItem(key, JSON.stringify(state));
   },
-
-  /* =========================
-     FILTERING & SEARCH
-  ========================= */
 
   setFilter(filterType) {
     this.filter = filterType;
@@ -811,7 +329,6 @@ const app = {
   applyFilters() {
     const keys = Object.keys(this.base);
     
-    // Apply filter
     let filtered = keys.filter(key => {
       const status = this.getStatus(key);
       
@@ -827,7 +344,6 @@ const app = {
       }
     });
 
-    // Apply search
     if (this.searchTerm) {
       filtered = filtered.filter(key => 
         key.toLowerCase().includes(this.searchTerm) ||
@@ -835,7 +351,6 @@ const app = {
       );
     }
 
-    // Sort: missing first, then outdated
     filtered.sort((a, b) => {
       const statusA = this.getStatus(a);
       const statusB = this.getStatus(b);
@@ -846,10 +361,6 @@ const app = {
     this.filteredKeys = filtered;
     this.render();
   },
-
-  /* =========================
-     STATUS LOGIC
-  ========================= */
 
   getStatus(key) {
     const en = this.base[key].text;
@@ -863,7 +374,6 @@ const app = {
       return { type: "placeholder-issue", badge: "placeholder issue", class: "row-placeholder-issue" };
     }
 
-    // Check if English text changed
     const stored = this.getStoredState(CONFIG.LANGUAGE);
     const previousBase = stored.basePerKey || {};
     const previousHash = previousBase[key] ? previousBase[key].hash : null;
@@ -876,10 +386,6 @@ const app = {
     return { type: "ok", badge: "✓", class: "row-ok" };
   },
 
-  /* =========================
-     PLACEHOLDER VALIDATION
-  ========================= */
-
   extractPlaceholders(str) {
     const matches = str.match(/%(\d+\$)?[sdifxX]/g) || [];
     return matches.sort();
@@ -890,10 +396,6 @@ const app = {
     const bStr = this.extractPlaceholders(tr).join(",");
     return aStr === bStr;
   },
-
-  /* =========================
-     RENDER
-  ========================= */
 
   render() {
     const tbody = document.getElementById("tbody");
@@ -952,10 +454,6 @@ const app = {
     this.updateStats();
   },
 
-  /* =========================
-     UPDATE & PERSISTENCE
-  ========================= */
-
   onInput(el) {
     const key = el.getAttribute("data-key");
     this.translated[key] = el.value;
@@ -978,10 +476,6 @@ const app = {
     }, CONFIG.DEBOUNCE_SAVE);
   },
 
-  /* =========================
-     KEYBOARD NAVIGATION
-  ========================= */
-
   onKeydown(event, key) {
     const inputs = Array.from(document.querySelectorAll(".translation-cell input"));
     const currentIdx = inputs.findIndex(el => el.getAttribute("data-key") === key);
@@ -1002,7 +496,6 @@ const app = {
         inputs[currentIdx + 1].focus();
       }
     } else if (event.key === "Tab") {
-      // Keep Tab in translation column
       if (event.shiftKey && currentIdx > 0) {
         event.preventDefault();
         inputs[currentIdx - 1].focus();
@@ -1012,10 +505,6 @@ const app = {
       }
     }
   },
-
-  /* =========================
-     STATS
-  ========================= */
 
   updateStats() {
     const keys = Object.keys(this.base);
@@ -1032,10 +521,6 @@ const app = {
     document.getElementById("statsMissing").textContent = `Missing: ${missing}`;
     document.getElementById("statsOutdated").textContent = `Outdated: ${outdated}`;
   },
-
-  /* =========================
-     EMAIL (MAILTO)
-  ========================= */
 
   sendEmail() {
     const lang = CONFIG.LANGUAGE;
@@ -1069,10 +554,6 @@ const app = {
     this.setStatus("Opening email client...");
   },
 
-  /* =========================
-     UTILITY
-  ========================= */
-
   escapeHTML(str) {
     const map = {
       "&": "&amp;",
@@ -1082,14 +563,6 @@ const app = {
       "'": "&#39;"
     };
     return str.replace(/[&<>"']/g, m => map[m]);
-  },
-
-  escapeXML(str) {
-    return this.escapeHTML(str);
-  },
-
-  escapeXMLAttr(str) {
-    return this.escapeHTML(str);
   },
 
   setStatus(msg) {
@@ -1109,7 +582,6 @@ const app = {
   },
 };
 
-// Initialize on page load
 window.addEventListener("DOMContentLoaded", () => {
   app.init();
 });
