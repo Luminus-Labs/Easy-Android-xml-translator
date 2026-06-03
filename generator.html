@@ -3,330 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Android Strings Translator - URL Generator</title>
-
-<style>
-* { box-sizing: border-box; }
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  margin: 0;
-  padding: 20px;
-  background: #f5f5f5;
-  color: #333;
-}
-
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  padding: 30px;
-}
-
-header {
-  margin-bottom: 30px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 20px;
-}
-
-h1 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  color: #24292e;
-}
-
-.subtitle {
-  font-size: 14px;
-  color: #666;
-  margin: 0;
-}
-
-.form-group {
-  margin-bottom: 24px;
-}
-
-label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #24292e;
-  font-size: 14px;
-}
-
-input[type="text"],
-input[type="email"],
-select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-select:focus {
-  outline: none;
-  border-color: #0366d6;
-  box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
-}
-
-.help-text {
-  font-size: 12px;
-  color: #666;
-  margin-top: 6px;
-  line-height: 1.4;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-@media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-.button-group {
-  display: flex;
-  gap: 12px;
-  margin-top: 30px;
-  flex-wrap: wrap;
-}
-
-button {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-primary {
-  background: #0366d6;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #0256b8;
-}
-
-.btn-primary:active {
-  opacity: 0.8;
-}
-
-.btn-secondary {
-  background: #e1e4e8;
-  color: #24292e;
-}
-
-.btn-secondary:hover {
-  background: #d1d5da;
-}
-
-.output-section {
-  margin-top: 40px;
-  padding-top: 30px;
-  border-top: 1px solid #eee;
-  display: none;
-}
-
-.output-section.show {
-  display: block;
-}
-
-.output-section h2 {
-  font-size: 18px;
-  margin: 0 0 16px 0;
-  color: #24292e;
-}
-
-.output-box {
-  background: #f6f8fa;
-  border: 1px solid #d1d5da;
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 12px;
-  word-break: break-all;
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 12px;
-  color: #24292e;
-  max-height: 200px;
-  overflow-y: auto;
-  position: relative;
-}
-
-.copy-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 4px 8px;
-  font-size: 11px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.copy-btn:hover {
-  background: #f6f8fa;
-  border-color: #0366d6;
-  color: #0366d6;
-}
-
-.success-message {
-  background: #f0fff4;
-  border: 1px solid #34d399;
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 12px;
-  color: #065f46;
-  font-size: 13px;
-  display: none;
-}
-
-.success-message.show {
-  display: block;
-}
-
-.error-message {
-  background: #ffeef0;
-  border: 1px solid #d73a49;
-  border-radius: 4px;
-  padding: 12px;
-  margin-bottom: 12px;
-  color: #86181e;
-  font-size: 13px;
-  display: none;
-}
-
-.error-message.show {
-  display: block;
-}
-
-.language-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.lang-option {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
-  text-align: center;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-
-.lang-option:hover {
-  border-color: #0366d6;
-  background: #f0f5ff;
-}
-
-.lang-option.selected {
-  background: #0366d6;
-  color: white;
-  border-color: #0366d6;
-}
-
-.url-preview {
-  background: #fff8c5;
-  border: 1px solid #d4b40f;
-  border-radius: 4px;
-  padding: 12px;
-  margin-top: 16px;
-  font-size: 12px;
-  color: #24292e;
-}
-
-.url-preview strong {
-  display: block;
-  margin-bottom: 8px;
-  color: #6f42c1;
-}
-
-.url-preview code {
-  display: block;
-  background: white;
-  padding: 8px;
-  border-radius: 3px;
-  margin-top: 8px;
-  font-family: 'Monaco', monospace;
-  word-break: break-all;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.quick-help {
-  background: #f6f8fa;
-  border: 1px solid #d1d5da;
-  border-radius: 4px;
-  padding: 16px;
-  margin-bottom: 24px;
-}
-
-.quick-help h3 {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  color: #24292e;
-}
-
-.quick-help p {
-  margin: 0;
-  font-size: 13px;
-  color: #666;
-  line-height: 1.5;
-}
-
-.quick-help code {
-  background: white;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-family: monospace;
-  color: #24292e;
-}
-
-@media (max-width: 768px) {
-  .container {
-    padding: 16px;
-  }
-
-  h1 {
-    font-size: 22px;
-  }
-
-  button {
-    width: 100%;
-  }
-
-  .button-group {
-    flex-direction: column;
-  }
-}
-</style>
+<title>URL Generator - Android Strings Translator</title>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<div class="theme-toggle">
+  <button class="theme-toggle-btn"></button>
+</div>
+
 <div class="container">
-  <header>
+  <div class="navbar">
     <h1>🛠️ Translator URL Generator</h1>
-    <p class="subtitle">Create shareable links for Android string translation</p>
-  </header>
+    <div class="navbar-spacer"></div>
+    <a href="index.html">Translator</a>
+    <a href="generator.html" class="active">URL Generator</a>
+  </div>
 
   <div class="quick-help">
     <h3>📝 How it works</h3>
@@ -382,7 +75,7 @@ button {
       <button type="button" class="btn-secondary" onclick="openTranslator()">🚀 Open Translator</button>
     </div>
 
-    <div style="margin-top: 20px; padding: 16px; background: #f6f8fa; border-radius: 4px; font-size: 12px; color: #666;">
+    <div style="margin-top: 20px; padding: 16px; background: var(--color-surface-2); border-radius: var(--radius-lg); font-size: 12px; color: var(--color-text-secondary);">
       <strong>Share this URL with translators:</strong>
       <p style="margin: 8px 0 0 0; line-height: 1.6;">
         - They can paste it in their browser<br>
@@ -394,6 +87,7 @@ button {
   </div>
 </div>
 
+<script src="theme.js"></script>
 <script>
 
 const LANGUAGES = [
@@ -440,7 +134,6 @@ function selectLanguage(code, name, element) {
 }
 
 function guessTargetUrl(sourceUrl, langCode) {
-  // Replace "values/strings.xml" with "values-{lang}/strings.xml"
   return sourceUrl.replace('/values/strings.xml', `/values-${langCode}/strings.xml`);
 }
 
@@ -504,7 +197,6 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
   const sourceUrl = document.getElementById('sourceUrl').value.trim();
   const email = document.getElementById('email').value.trim();
   
-  // Validate inputs
   if (!sourceUrl) {
     showError('Please enter a source URL');
     return;
@@ -546,7 +238,6 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
   }
 });
 
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initLanguageOptions();
 });
