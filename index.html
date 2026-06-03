@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Strings Translator</title>
+
+<style>
+body { font-family: sans-serif; margin: 20px; }
+header { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+table { width:100%; border-collapse:collapse; margin-top:15px; }
+th, td { border:1px solid #ddd; padding:8px; }
+th { background:#f4f4f4; }
+
+input { width:100%; padding:6px; }
+
+.row-missing { background:#ffe5e5; }
+.row-ok { background:#e7ffe7; }
+.row-outdated { background:#fff6d6; }
+
+.badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  background: #ddd;
+}
+
+small { color:#666; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h2>Android Strings Translator</h2>
+
+  <label>
+    Language:
+    <select id="lang">
+      <option value="fr">French</option>
+      <option value="es">Spanish</option>
+      <option value="de">German</option>
+    </select>
+  </label>
+
+  <button onclick="load()">Load</button>
+  <button onclick="exportXML()">Export XML</button>
+  <button onclick="sendEmail()">Send Email</button>
+
+  <small id="status">Idle</small>
+</header>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>English</th>
+      <th>Translation</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+
+/* =========================
+   CONFIG
+========================= */
+
+const BASE_URL =
+"https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/app/src/main/res/values/strings.xml";
+
+/* =========================
+   STATE
+========================= */
+
+let base = {};        // key -> english
+let translated = {};  // key -> translation
+
+let baseSnapshot = {}; // key -> english at load time
+
+/* =========================
+   XML PARSER
+========================= */
+
+function parseXML(text) {
+  const xml = new DOMParser().parseFromString(text, "text/xml");
+  const map = {};
+
+  xml.querySelectorAll("string").forEach(n => {
+    map[n.getAttribute("name")] = n.textContent;
+  });
+
+  return map;
+}
+
+/* =========================
+   LOAD
+========================= */
+
+async function load() {
+  setStatus("Loading...");
+
+  const lang = document.getElementById("lang").value;
+
+  const res = await fetch(BASE_URL);
+  const xml = await res.text();
+
+  base = parseXML(xml);
+  baseSnapshot = JSON.parse(JSON.stringify(base));
+
+  translated = {};
+
+  // load existing translation
+  try {
+    const tUrl = BASE_URL.replace(
+      "values/strings.xml",
+      "values-" + lang + "/strings.xml"
+    );
+
+    const tRes = await fetch(tUrl);
+    if (tRes.ok) {
+      translated = parseXML(await tRes.text());
+    }
+  } catch (e) {}
+
+  render();
+  setStatus("Loaded");
+}
+
+/* =========================
+   RENDER
+========================= */
+
+function render() {
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+
+  Object.keys(base).forEach(key => {
+    const en = base[key];
+    const tr = translated[key] || "";
+
+    const status = getStatus(key, en, tr);
+
+    const row = document.createElement("tr");
+    row.className = status.class;
+
+    row.innerHTML = `
+      <td>
+        ${key}
+        ${status.badge ? `<span class="badge">${status.badge}</span>` : ""}
+      </td>
+
+      <td>${escapeHTML(en)}</td>
+
+      <td>
+        <input value="${escapeHTML(tr)}"
+          oninput="update('${key}', this.value)">
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
+/* =========================
+   STATUS LOGIC (IMPORTANT)
+========================= */
+
+function getStatus(key, en, tr) {
+  if (!tr) return { class: "row-missing", badge: "missing" };
+
+  const oldEn = baseSnapshot[key];
+
+  if (oldEn && oldEn !== en) {
+    return { class: "row-outdated", badge: "outdated" };
+  }
+
+  if (!validatePlaceholders(en, tr)) {
+    return { class: "row-outdated", badge: "placeholder issue" };
+  }
+
+  return { class: "row-ok", badge: "ok" };
+}
+
+/* =========================
+   PLACEHOLDER VALIDATION
+========================= */
+
+function extractPlaceholders(str) {
+  const matches = str.match(/%(\d+\$)?[sdif]/g);
+  return matches ? matches.sort() : [];
+}
+
+function validatePlaceholders(en, tr) {
+  const a = extractPlaceholders(en).join(",");
+  const b = extractPlaceholders(tr).join(",");
+  return a === b;
+}
+
+/* =========================
+   UPDATE
+========================= */
+
+function update(key, val) {
+  translated[key] = val;
+}
+
+/* =========================
+   EXPORT XML
+========================= */
+
+function exportXML() {
+  let xml = "<resources>\n";
+
+  Object.keys(base).forEach(key => {
+    const val = translated[key];
+    if (!val) return;
+
+    xml += `  <string name="${key}">${escapeXML(val)}</string>\n`;
+  });
+
+  xml += "</resources>";
+
+  download("strings.xml", xml);
+}
+
+/* =========================
+   EMAIL
+========================= */
+
+function sendEmail() {
+  const lang = document.getElementById("lang").value;
+
+  const payload = {
+    lang,
+    translations: translated
+  };
+
+  const body = encodeURIComponent(JSON.stringify(payload, null, 2));
+
+  window.location.href =
+    `mailto:you@email.com?subject=Translation ${lang}&body=${body}`;
+}
+
+/* =========================
+   UTIL
+========================= */
+
+function escapeXML(str) {
+  return str
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function escapeHTML(str) {
+  return escapeXML(str);
+}
+
+function download(name, content) {
+  const blob = new Blob([content], { type: "text/xml" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+}
+
+function setStatus(t) {
+  document.getElementById("status").textContent = t;
+}
+
+</script>
+
+</body>
+</html>
