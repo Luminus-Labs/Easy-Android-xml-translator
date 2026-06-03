@@ -2,65 +2,510 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Strings Translator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android Strings Translator</title>
 
 <style>
-body { font-family: sans-serif; margin: 20px; }
-header { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+* { box-sizing: border-box; }
 
-table { width:100%; border-collapse:collapse; margin-top:15px; }
-th, td { border:1px solid #ddd; padding:8px; }
-th { background:#f4f4f4; }
-
-input { width:100%; padding:6px; }
-
-.row-missing { background:#ffe5e5; }
-.row-ok { background:#e7ffe7; }
-.row-outdated { background:#fff6d6; }
-
-.badge {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 6px;
-  background: #ddd;
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #f5f5f5;
+  color: #333;
 }
 
-small { color:#666; }
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 20px;
+}
+
+header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+select, input[type="text"], button {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+select {
+  min-width: 120px;
+}
+
+input[type="text"] {
+  min-width: 200px;
+}
+
+button {
+  background: #0366d6;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #0256b8;
+}
+
+button:active {
+  opacity: 0.8;
+}
+
+.filter-badge {
+  background: #e1e4e8;
+  color: #24292e;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stats {
+  font-size: 13px;
+  color: #666;
+  display: flex;
+  gap: 16px;
+}
+
+.status {
+  color: #0366d6;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid #ddd;
+}
+
+.filter-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid #eee;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  background: white;
+  color: #0366d6;
+  border: 1px solid #0366d6;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.filter-btn.active {
+  background: #0366d6;
+  color: white;
+}
+
+.filter-btn:hover {
+  background: #f0f5ff;
+}
+
+.filter-btn.active:hover {
+  background: #0256b8;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-box input {
+  width: 100%;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f6f8fa;
+}
+
+th {
+  border: 1px solid #d1d5da;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #24292e;
+  background: #f6f8fa;
+}
+
+td {
+  border: 1px solid #e1e4e8;
+  padding: 12px;
+  vertical-align: top;
+}
+
+tr.row-missing {
+  background: #ffeef0;
+}
+
+tr.row-missing:hover {
+  background: #ffd9e3;
+}
+
+tr.row-ok {
+  background: #f0fff4;
+}
+
+tr.row-ok:hover {
+  background: #dcffed;
+}
+
+tr.row-outdated {
+  background: #fffbea;
+}
+
+tr.row-outdated:hover {
+  background: #fff7d6;
+}
+
+tr.row-placeholder-issue {
+  background: #fff1f0;
+}
+
+tr.row-placeholder-issue:hover {
+  background: #ffd9d6;
+}
+
+.key-cell {
+  font-weight: 600;
+  color: #24292e;
+  max-width: 200px;
+  word-break: break-word;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  margin-top: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-missing {
+  background: #d73a49;
+  color: white;
+}
+
+.badge-ok {
+  background: #28a745;
+  color: white;
+}
+
+.badge-outdated {
+  background: #ffc53b;
+  color: #24292e;
+}
+
+.badge-placeholder-issue {
+  background: #d73a49;
+  color: white;
+}
+
+.text-cell {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  background: #fafbfc;
+  color: #24292e;
+  max-width: 300px;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-height: 150px;
+  overflow-y: auto;
+  border-radius: 3px;
+  padding: 8px;
+  border: 1px solid #e1e4e8;
+}
+
+.translation-cell input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5da;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.translation-cell input:focus {
+  outline: none;
+  border-color: #0366d6;
+  box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  margin: 0;
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 200px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+  font-family: 'Monaco', monospace;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+
+.outdated-diff {
+  font-size: 12px;
+  color: #d73a49;
+  margin-top: 4px;
+  font-family: monospace;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  h1 {
+    width: 100%;
+  }
+
+  .controls {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  label, select, input[type="text"], button {
+    width: 100%;
+  }
+
+  .filter-section {
+    flex-direction: column;
+  }
+
+  .filter-buttons {
+    width: 100%;
+  }
+
+  .filter-btn {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .text-cell {
+    max-width: 150px;
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .key-cell {
+    max-width: 100px;
+  }
+}
 </style>
 </head>
 
 <body>
 
-<header>
-  <h2>Android Strings Translator</h2>
+<div class="container">
+  <header>
+    <h1>🌍 Android Strings Translator</h1>
+    <div class="controls">
+      <label>Language:
+        <select id="lang">
+          <option value="fr">French (fr)</option>
+          <option value="es">Spanish (es)</option>
+          <option value="de">German (de)</option>
+          <option value="it">Italian (it)</option>
+          <option value="pt">Portuguese (pt)</option>
+          <option value="ja">Japanese (ja)</option>
+          <option value="zh">Chinese (zh)</option>
+          <option value="ru">Russian (ru)</option>
+          <option value="ar">Arabic (ar)</option>
+          <option value="ko">Korean (ko)</option>
+        </select>
+      </label>
+      <button id="loadBtn" onclick="app.load()">Load</button>
+      <button id="exportBtn" onclick="app.exportXML()" disabled>Export XML</button>
+      <button id="emailBtn" onclick="app.sendEmail()" disabled>Send Email</button>
+    </div>
+  </header>
 
-  <label>
-    Language:
-    <select id="lang">
-      <option value="fr">French</option>
-      <option value="es">Spanish</option>
-      <option value="de">German</option>
-    </select>
-  </label>
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-color" style="background: #f0fff4;"></div>
+      <span>Translated</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #ffeef0;"></div>
+      <span>Missing</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #fffbea;"></div>
+      <span>Outdated</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #fff1f0;"></div>
+      <span>Placeholder Issue</span>
+    </div>
+  </div>
 
-  <button onclick="load()">Load</button>
-  <button onclick="exportXML()">Export XML</button>
-  <button onclick="sendEmail()">Send Email</button>
+  <div class="filter-section">
+    <div class="filter-buttons">
+      <button class="filter-btn active" onclick="app.setFilter('all')">All Strings</button>
+      <button class="filter-btn" onclick="app.setFilter('missing')">Missing</button>
+      <button class="filter-btn" onclick="app.setFilter('outdated')">Outdated</button>
+      <button class="filter-btn" onclick="app.setFilter('needs-work')">Needs Work</button>
+    </div>
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Search by key..." onkeyup="app.onSearch(event)">
+    </div>
+  </div>
 
-  <small id="status">Idle</small>
-</header>
+  <div class="stats">
+    <span id="statsTotal">Total: 0</span>
+    <span id="statsMissing">Missing: 0</span>
+    <span id="statsOutdated">Outdated: 0</span>
+    <span id="statusMsg" class="status">Idle</span>
+  </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Key</th>
-      <th>English</th>
-      <th>Translation</th>
-    </tr>
-  </thead>
-  <tbody id="tbody"></tbody>
-</table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 180px;">Key</th>
+          <th style="width: 1fr; min-width: 300px;">English</th>
+          <th style="width: 1fr; min-width: 300px;">Translation</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div id="emptyState" class="empty-state" style="display:none;">
+    <h3>No strings found</h3>
+    <p>Load a strings.xml file to get started</p>
+  </div>
+</div>
 
 <script>
 
@@ -68,208 +513,546 @@ small { color:#666; }
    CONFIG
 ========================= */
 
-const BASE_URL =
-"https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/app/src/main/res/values/strings.xml";
+const CONFIG = {
+  BASE_URL: "https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/app/src/main/res/values/strings.xml",
+  STORAGE_PREFIX: "translator_",
+  DEBOUNCE_SAVE: 1000,
+};
 
 /* =========================
    STATE
 ========================= */
 
-let base = {};        // key -> english
-let translated = {};  // key -> translation
+const app = {
+  base: {},           // key -> { text, hash }
+  translated: {},     // key -> translation
+  filteredKeys: [],   // currently displayed keys
+  filter: "all",      // 'all', 'missing', 'outdated', 'needs-work'
+  searchTerm: "",
+  currentLang: "fr",
+  editingKey: null,
+  saveTimeout: null,
+  loaded: false,
 
-let baseSnapshot = {}; // key -> english at load time
+  /* =========================
+     INIT
+  ========================= */
 
-/* =========================
-   XML PARSER
-========================= */
+  init() {
+    this.currentLang = localStorage.getItem(CONFIG.STORAGE_PREFIX + "lang") || "fr";
+    document.getElementById("lang").value = this.currentLang;
+    document.getElementById("lang").addEventListener("change", (e) => {
+      this.currentLang = e.target.value;
+      localStorage.setItem(CONFIG.STORAGE_PREFIX + "lang", e.target.value);
+      if (this.loaded) this.load();
+    });
+  },
 
-function parseXML(text) {
-  const xml = new DOMParser().parseFromString(text, "text/xml");
-  const map = {};
+  /* =========================
+     XML PARSER
+  ========================= */
 
-  xml.querySelectorAll("string").forEach(n => {
-    map[n.getAttribute("name")] = n.textContent;
-  });
-
-  return map;
-}
-
-/* =========================
-   LOAD
-========================= */
-
-async function load() {
-  setStatus("Loading...");
-
-  const lang = document.getElementById("lang").value;
-
-  const res = await fetch(BASE_URL);
-  const xml = await res.text();
-
-  base = parseXML(xml);
-  baseSnapshot = JSON.parse(JSON.stringify(base));
-
-  translated = {};
-
-  // load existing translation
-  try {
-    const tUrl = BASE_URL.replace(
-      "values/strings.xml",
-      "values-" + lang + "/strings.xml"
-    );
-
-    const tRes = await fetch(tUrl);
-    if (tRes.ok) {
-      translated = parseXML(await tRes.text());
+  parseXML(text) {
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(text, "text/xml");
+    
+    if (xml.documentElement.nodeName === "parsererror") {
+      throw new Error("Invalid XML format");
     }
-  } catch (e) {}
 
-  render();
-  setStatus("Loaded");
-}
+    const map = {};
 
-/* =========================
-   RENDER
-========================= */
+    // Parse <string> elements
+    xml.querySelectorAll("string").forEach(node => {
+      const name = node.getAttribute("name");
+      if (name) {
+        map[name] = node.textContent || "";
+      }
+    });
 
-function render() {
-  const tbody = document.getElementById("tbody");
-  tbody.innerHTML = "";
+    // Parse <plurals> elements (basic support)
+    xml.querySelectorAll("plurals").forEach(node => {
+      const name = node.getAttribute("name");
+      if (name) {
+        const items = [];
+        node.querySelectorAll("item").forEach(item => {
+          items.push(item.textContent || "");
+        });
+        map[name] = items.join(" | ");
+      }
+    });
 
-  Object.keys(base).forEach(key => {
-    const en = base[key];
-    const tr = translated[key] || "";
+    // Parse <string-array> elements (basic support)
+    xml.querySelectorAll("string-array").forEach(node => {
+      const name = node.getAttribute("name");
+      if (name) {
+        const items = [];
+        node.querySelectorAll("item").forEach(item => {
+          items.push(item.textContent || "");
+        });
+        map[name] = items.join(" | ");
+      }
+    });
 
-    const status = getStatus(key, en, tr);
+    return map;
+  },
 
-    const row = document.createElement("tr");
+  /* =========================
+     HASH GENERATION (PER-KEY TRACKING)
+  ========================= */
+
+  hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  },
+
+  /* =========================
+     LOAD
+  ========================= */
+
+  async load() {
+    this.setStatus("Loading...");
+    this.lock();
+
+    try {
+      const lang = this.currentLang;
+
+      // Fetch base English strings
+      const res = await fetch(CONFIG.BASE_URL);
+      if (!res.ok) throw new Error("Failed to load base strings.xml");
+      
+      const baseText = await res.text();
+      const baseParsed = this.parseXML(baseText);
+
+      // Load previous state from storage
+      const stored = this.getStoredState(lang);
+      const previousBase = stored.basePerKey || {};
+
+      // Initialize base with per-key hashing
+      this.base = {};
+      Object.keys(baseParsed).forEach(key => {
+        const text = baseParsed[key];
+        const hash = this.hashString(text);
+        this.base[key] = { text, hash };
+      });
+
+      // Load or initialize translations
+      this.translated = {};
+      try {
+        const tUrl = CONFIG.BASE_URL.replace(
+          "values/strings.xml",
+          "values-" + lang + "/strings.xml"
+        );
+        const tRes = await fetch(tUrl);
+        if (tRes.ok) {
+          this.translated = this.parseXML(await tRes.text());
+        }
+      } catch (e) {
+        // Translation file not found, use stored translations
+        this.translated = stored.translations || {};
+      }
+
+      // Save current state
+      this.saveState(lang);
+      this.loaded = true;
+      this.render();
+      this.setStatus("Loaded successfully");
+    } catch (err) {
+      this.setStatus("Error: " + err.message);
+      console.error(err);
+    } finally {
+      this.unlock();
+    }
+  },
+
+  /* =========================
+     STORAGE (PER-LANGUAGE)
+  ========================= */
+
+  getStoredState(lang) {
+    const key = CONFIG.STORAGE_PREFIX + lang;
+    try {
+      return JSON.parse(localStorage.getItem(key)) || {};
+    } catch {
+      return {};
+    }
+  },
+
+  saveState(lang) {
+    const key = CONFIG.STORAGE_PREFIX + lang;
+    const state = {
+      basePerKey: this.base,
+      translations: this.translated,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(state));
+  },
+
+  /* =========================
+     FILTERING & SEARCH
+  ========================= */
+
+  setFilter(filterType) {
+    this.filter = filterType;
+    document.querySelectorAll(".filter-btn").forEach((btn, idx) => {
+      btn.classList.toggle("active", 
+        (idx === 0 && filterType === "all") ||
+        (idx === 1 && filterType === "missing") ||
+        (idx === 2 && filterType === "outdated") ||
+        (idx === 3 && filterType === "needs-work")
+      );
+    });
+    this.applyFilters();
+  },
+
+  onSearch(event) {
+    this.searchTerm = event.target.value.toLowerCase();
+    this.applyFilters();
+  },
+
+  applyFilters() {
+    const keys = Object.keys(this.base);
+    
+    // Apply filter
+    let filtered = keys.filter(key => {
+      const status = this.getStatus(key);
+      
+      switch (this.filter) {
+        case "missing":
+          return status.type === "missing";
+        case "outdated":
+          return status.type === "outdated";
+        case "needs-work":
+          return status.type === "missing" || status.type === "outdated" || status.type === "placeholder-issue";
+        default:
+          return true;
+      }
+    });
+
+    // Apply search
+    if (this.searchTerm) {
+      filtered = filtered.filter(key => 
+        key.toLowerCase().includes(this.searchTerm) ||
+        this.base[key].text.toLowerCase().includes(this.searchTerm)
+      );
+    }
+
+    // Sort: missing first, then outdated
+    filtered.sort((a, b) => {
+      const statusA = this.getStatus(a);
+      const statusB = this.getStatus(b);
+      const priority = { missing: 0, placeholder-issue: 1, outdated: 2, ok: 3 };
+      return (priority[statusA.type] || 3) - (priority[statusB.type] || 3);
+    });
+
+    this.filteredKeys = filtered;
+    this.render();
+  },
+
+  /* =========================
+     STATUS LOGIC
+  ========================= */
+
+  getStatus(key) {
+    const en = this.base[key].text;
+    const tr = this.translated[key] || "";
+
+    if (!tr) {
+      return { type: "missing", badge: "missing", class: "row-missing" };
+    }
+
+    if (!this.validatePlaceholders(en, tr)) {
+      return { type: "placeholder-issue", badge: "placeholder issue", class: "row-placeholder-issue" };
+    }
+
+    // Check if English text changed
+    const stored = this.getStoredState(this.currentLang);
+    const previousBase = stored.basePerKey || {};
+    const previousHash = previousBase[key] ? previousBase[key].hash : null;
+    const currentHash = this.base[key].hash;
+
+    if (previousHash && previousHash !== currentHash) {
+      return { type: "outdated", badge: "outdated", class: "row-outdated" };
+    }
+
+    return { type: "ok", badge: "✓", class: "row-ok" };
+  },
+
+  /* =========================
+     PLACEHOLDER VALIDATION
+  ========================= */
+
+  extractPlaceholders(str) {
+    const matches = str.match(/%(\d+\$)?[sdifxX]/g) || [];
+    return matches.sort();
+  },
+
+  validatePlaceholders(en, tr) {
+    const aStr = this.extractPlaceholders(en).join(",");
+    const bStr = this.extractPlaceholders(tr).join(",");
+    return aStr === bStr;
+  },
+
+  /* =========================
+     RENDER
+  ========================= */
+
+  render() {
+    const tbody = document.getElementById("tbody");
+    const emptyState = document.getElementById("emptyState");
+
+    if (this.filteredKeys.length === 0) {
+      tbody.innerHTML = "";
+      emptyState.style.display = this.loaded ? "block" : "none";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    tbody.innerHTML = "";
+
+    this.filteredKeys.forEach((key, idx) => {
+      const baseData = this.base[key];
+      const en = baseData.text;
+      const tr = this.translated[key] || "";
+      const status = this.getStatus(key);
+
+      const row = document.createElement("tr");
+      row.className = status.class;
+      row.id = `row-${key}`;
+
+      const stored = this.getStoredState(this.currentLang);
+      const previousBase = stored.basePerKey || {};
+      const prevText = previousBase[key] ? previousBase[key].text : "";
+      const hasChanged = prevText && prevText !== en;
+
+      row.innerHTML = `
+        <td class="key-cell">
+          ${this.escapeHTML(key)}
+          <span class="badge badge-${status.type}">${status.badge}</span>
+          ${hasChanged ? `<div class="outdated-diff">Changed</div>` : ""}
+        </td>
+        <td class="text-cell">
+          ${this.escapeHTML(en)}
+          ${hasChanged ? `<div class="outdated-diff">Was: ${this.escapeHTML(prevText)}</div>` : ""}
+        </td>
+        <td class="translation-cell">
+          <input 
+            type="text" 
+            data-key="${key}"
+            data-idx="${idx}"
+            value="${this.escapeHTML(tr)}"
+            onchange="app.onChange(this)"
+            oninput="app.onInput(this)"
+            onkeydown="app.onKeydown(event, '${key}')"
+            onfocus="app.editingKey = '${key}'">
+        </td>
+      `;
+
+      tbody.appendChild(row);
+    });
+
+    this.updateStats();
+  },
+
+  /* =========================
+     UPDATE & PERSISTENCE
+  ========================= */
+
+  onInput(el) {
+    const key = el.getAttribute("data-key");
+    this.translated[key] = el.value;
+    this.debouncedSave();
+  },
+
+  onChange(el) {
+    const key = el.getAttribute("data-key");
+    this.translated[key] = el.value;
+    this.saveState(this.currentLang);
+    const row = document.getElementById(`row-${key}`);
+    const status = this.getStatus(key);
     row.className = status.class;
+  },
 
-    row.innerHTML = `
-      <td>
-        ${key}
-        ${status.badge ? `<span class="badge">${status.badge}</span>` : ""}
-      </td>
+  debouncedSave() {
+    clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => {
+      this.saveState(this.currentLang);
+    }, CONFIG.DEBOUNCE_SAVE);
+  },
 
-      <td>${escapeHTML(en)}</td>
+  /* =========================
+     KEYBOARD NAVIGATION
+  ========================= */
 
-      <td>
-        <input value="${escapeHTML(tr)}"
-          oninput="update('${key}', this.value)">
-      </td>
-    `;
+  onKeydown(event, key) {
+    const inputs = Array.from(document.querySelectorAll(".translation-cell input"));
+    const currentIdx = inputs.findIndex(el => el.getAttribute("data-key") === key);
 
-    tbody.appendChild(row);
-  });
-}
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (currentIdx < inputs.length - 1) {
+        inputs[currentIdx + 1].focus();
+      }
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (currentIdx > 0) {
+        inputs[currentIdx - 1].focus();
+      }
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (currentIdx < inputs.length - 1) {
+        inputs[currentIdx + 1].focus();
+      }
+    } else if (event.key === "Tab") {
+      // Keep Tab in translation column
+      if (event.shiftKey && currentIdx > 0) {
+        event.preventDefault();
+        inputs[currentIdx - 1].focus();
+      } else if (!event.shiftKey && currentIdx < inputs.length - 1) {
+        event.preventDefault();
+        inputs[currentIdx + 1].focus();
+      }
+    }
+  },
 
-/* =========================
-   STATUS LOGIC (IMPORTANT)
-========================= */
+  /* =========================
+     STATS
+  ========================= */
 
-function getStatus(key, en, tr) {
-  if (!tr) return { class: "row-missing", badge: "missing" };
+  updateStats() {
+    const keys = Object.keys(this.base);
+    let missing = 0, outdated = 0;
 
-  const oldEn = baseSnapshot[key];
+    keys.forEach(key => {
+      const status = this.getStatus(key);
+      if (status.type === "missing") missing++;
+      if (status.type === "outdated") outdated++;
+    });
 
-  if (oldEn && oldEn !== en) {
-    return { class: "row-outdated", badge: "outdated" };
+    document.getElementById("statsTotal").textContent = `Total: ${keys.length}`;
+    document.getElementById("statsMissing").textContent = `Missing: ${missing}`;
+    document.getElementById("statsOutdated").textContent = `Outdated: ${outdated}`;
+  },
+
+  /* =========================
+     EXPORT XML
+  ========================= */
+
+  exportXML() {
+    let xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n";
+
+    // Maintain order from base
+    Object.keys(this.base).forEach(key => {
+      const val = this.translated[key];
+      if (!val) return;
+
+      xml += `  <string name="${this.escapeXMLAttr(key)}">${this.escapeXML(val)}</string>\n`;
+    });
+
+    xml += "</resources>";
+
+    this.download(`strings-${this.currentLang}.xml`, xml);
+    this.setStatus("Exported successfully");
+  },
+
+  /* =========================
+     EMAIL
+  ========================= */
+
+  sendEmail() {
+    const lang = this.currentLang;
+    const keys = Object.keys(this.base);
+    let missing = 0, outdated = 0;
+
+    keys.forEach(key => {
+      const status = this.getStatus(key);
+      if (status.type === "missing") missing++;
+      if (status.type === "outdated") outdated++;
+    });
+
+    const payload = {
+      language: lang,
+      stats: {
+        total: keys.length,
+        missing,
+        outdated,
+        translated: keys.length - missing
+      },
+      translations: this.translated,
+      timestamp: new Date().toISOString()
+    };
+
+    const body = encodeURIComponent(JSON.stringify(payload, null, 2));
+
+    window.location.href =
+      `mailto:you@example.com?subject=Android Strings Translation - ${lang}&body=${body}`;
+
+    this.setStatus("Opening email...");
+  },
+
+  /* =========================
+     UTILITY
+  ========================= */
+
+  escapeXML(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&apos;");
+  },
+
+  escapeXMLAttr(str) {
+    return this.escapeXML(str);
+  },
+
+  escapeHTML(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  },
+
+  download(name, content) {
+    const blob = new Blob([content], { type: "text/xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  setStatus(msg) {
+    document.getElementById("statusMsg").textContent = msg;
+  },
+
+  lock() {
+    document.getElementById("loadBtn").disabled = true;
+    document.getElementById("exportBtn").disabled = true;
+    document.getElementById("emailBtn").disabled = true;
+  },
+
+  unlock() {
+    document.getElementById("loadBtn").disabled = false;
+    document.getElementById("exportBtn").disabled = this.loaded ? false : true;
+    document.getElementById("emailBtn").disabled = this.loaded ? false : true;
   }
+};
 
-  if (!validatePlaceholders(en, tr)) {
-    return { class: "row-outdated", badge: "placeholder issue" };
-  }
-
-  return { class: "row-ok", badge: "ok" };
-}
-
-/* =========================
-   PLACEHOLDER VALIDATION
-========================= */
-
-function extractPlaceholders(str) {
-  const matches = str.match(/%(\d+\$)?[sdif]/g);
-  return matches ? matches.sort() : [];
-}
-
-function validatePlaceholders(en, tr) {
-  const a = extractPlaceholders(en).join(",");
-  const b = extractPlaceholders(tr).join(",");
-  return a === b;
-}
-
-/* =========================
-   UPDATE
-========================= */
-
-function update(key, val) {
-  translated[key] = val;
-}
-
-/* =========================
-   EXPORT XML
-========================= */
-
-function exportXML() {
-  let xml = "<resources>\n";
-
-  Object.keys(base).forEach(key => {
-    const val = translated[key];
-    if (!val) return;
-
-    xml += `  <string name="${key}">${escapeXML(val)}</string>\n`;
-  });
-
-  xml += "</resources>";
-
-  download("strings.xml", xml);
-}
-
-/* =========================
-   EMAIL
-========================= */
-
-function sendEmail() {
-  const lang = document.getElementById("lang").value;
-
-  const payload = {
-    lang,
-    translations: translated
-  };
-
-  const body = encodeURIComponent(JSON.stringify(payload, null, 2));
-
-  window.location.href =
-    `mailto:you@email.com?subject=Translation ${lang}&body=${body}`;
-}
-
-/* =========================
-   UTIL
-========================= */
-
-function escapeXML(str) {
-  return str
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function escapeHTML(str) {
-  return escapeXML(str);
-}
-
-function download(name, content) {
-  const blob = new Blob([content], { type: "text/xml" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-}
-
-function setStatus(t) {
-  document.getElementById("status").textContent = t;
-}
+// Initialize on page load
+window.addEventListener("DOMContentLoaded", () => {
+  app.init();
+});
 
 </script>
 
