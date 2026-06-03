@@ -89,6 +89,11 @@ button:active {
   opacity: 0.8;
 }
 
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
 .filter-badge {
   background: #e1e4e8;
   color: #24292e;
@@ -331,6 +336,29 @@ tr.row-placeholder-issue:hover {
   margin: 0;
 }
 
+.error-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #d73a49;
+}
+
+.error-state h3 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.error-state p {
+  font-size: 14px;
+  margin: 8px 0;
+  font-family: monospace;
+  background: #fff1f0;
+  padding: 8px;
+  border-radius: 4px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .tooltip {
   position: relative;
   display: inline-block;
@@ -365,6 +393,15 @@ tr.row-placeholder-issue:hover {
   color: #d73a49;
   margin-top: 4px;
   font-family: monospace;
+}
+
+.config-info {
+  font-size: 12px;
+  color: #666;
+  background: #f6f8fa;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 768px) {
@@ -420,6 +457,10 @@ tr.row-placeholder-issue:hover {
   .key-cell {
     max-width: 100px;
   }
+
+  .config-info {
+    font-size: 11px;
+  }
 }
 </style>
 </head>
@@ -430,25 +471,12 @@ tr.row-placeholder-issue:hover {
   <header>
     <h1>🌍 Android Strings Translator</h1>
     <div class="controls">
-      <label>Language:
-        <select id="lang">
-          <option value="fr">French (fr)</option>
-          <option value="es">Spanish (es)</option>
-          <option value="de">German (de)</option>
-          <option value="it">Italian (it)</option>
-          <option value="pt">Portuguese (pt)</option>
-          <option value="ja">Japanese (ja)</option>
-          <option value="zh">Chinese (zh)</option>
-          <option value="ru">Russian (ru)</option>
-          <option value="ar">Arabic (ar)</option>
-          <option value="ko">Korean (ko)</option>
-        </select>
-      </label>
       <button id="loadBtn" onclick="app.load()">Load</button>
-      <button id="exportBtn" onclick="app.exportXML()" disabled>Export XML</button>
-      <button id="emailBtn" onclick="app.sendEmail()" disabled>Send Email</button>
+      <button id="emailBtn" onclick="app.sendEmail()" disabled>Send via Email</button>
     </div>
   </header>
+
+  <div class="config-info" id="configInfo" style="display:none;"></div>
 
   <div class="legend">
     <div class="legend-item">
@@ -505,19 +533,82 @@ tr.row-placeholder-issue:hover {
     <h3>No strings found</h3>
     <p>Load a strings.xml file to get started</p>
   </div>
+
+  <div id="errorState" class="error-state" style="display:none;">
+    <h3>Configuration Error</h3>
+    <p id="errorMsg"></p>
+  </div>
 </div>
 
 <script>
 
 /* =========================
-   CONFIG
+   URL PARAMETER PARSER
 ========================= */
 
+const urlParams = new URLSearchParams(window.location.search);
+
 const CONFIG = {
-  BASE_URL: "https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/app/src/main/res/values/strings.xml",
+  SOURCE_URL: urlParams.get('source'),
+  TARGET_URL: urlParams.get('target'),
+  LANGUAGE: urlParams.get('lang') || 'fr',
+  EMAIL: urlParams.get('email'),
   STORAGE_PREFIX: "translator_",
   DEBOUNCE_SAVE: 1000,
 };
+
+function validateConfig() {
+  const errors = [];
+  
+  if (!CONFIG.SOURCE_URL) {
+    errors.push("Missing required parameter: source (raw URL to strings.xml)");
+  }
+  if (!CONFIG.LANGUAGE) {
+    errors.push("Missing required parameter: lang (language code)");
+  }
+  if (!CONFIG.EMAIL) {
+    errors.push("Missing required parameter: email (destination email)");
+  }
+  
+  if (CONFIG.SOURCE_URL) {
+    try {
+      new URL(CONFIG.SOURCE_URL);
+    } catch {
+      errors.push("Invalid source URL format");
+    }
+  }
+  
+  if (CONFIG.TARGET_URL) {
+    try {
+      new URL(CONFIG.TARGET_URL);
+    } catch {
+      errors.push("Invalid target URL format");
+    }
+  }
+  
+  return errors;
+}
+
+function showConfigInfo() {
+  const info = document.getElementById('configInfo');
+  info.innerHTML = `
+    <strong>Configuration:</strong> 
+    Language: <code>${CONFIG.LANGUAGE}</code> | 
+    Email: <code>${CONFIG.EMAIL}</code> | 
+    Source: <code>${CONFIG.SOURCE_URL.substring(0, 60)}...</code>
+    ${CONFIG.TARGET_URL ? ` | Target: <code>${CONFIG.TARGET_URL.substring(0, 60)}...</code>` : ''}
+  `;
+  info.style.display = 'block';
+}
+
+function showError(message) {
+  document.getElementById('loadBtn').disabled = true;
+  document.getElementById('emailBtn').disabled = true;
+  document.getElementById('tbody').innerHTML = '';
+  const errorState = document.getElementById('errorState');
+  document.getElementById('errorMsg').textContent = message;
+  errorState.style.display = 'block';
+}
 
 /* =========================
    STATE
@@ -529,7 +620,6 @@ const app = {
   filteredKeys: [],   // currently displayed keys
   filter: "all",      // 'all', 'missing', 'outdated', 'needs-work'
   searchTerm: "",
-  currentLang: "fr",
   editingKey: null,
   saveTimeout: null,
   loaded: false,
@@ -539,13 +629,14 @@ const app = {
   ========================= */
 
   init() {
-    this.currentLang = localStorage.getItem(CONFIG.STORAGE_PREFIX + "lang") || "fr";
-    document.getElementById("lang").value = this.currentLang;
-    document.getElementById("lang").addEventListener("change", (e) => {
-      this.currentLang = e.target.value;
-      localStorage.setItem(CONFIG.STORAGE_PREFIX + "lang", e.target.value);
-      if (this.loaded) this.load();
-    });
+    // Validate configuration
+    const errors = validateConfig();
+    if (errors.length > 0) {
+      showError(errors.join("<br>"));
+      return;
+    }
+    
+    showConfigInfo();
   },
 
   /* =========================
@@ -620,11 +711,11 @@ const app = {
     this.lock();
 
     try {
-      const lang = this.currentLang;
+      const lang = CONFIG.LANGUAGE;
 
       // Fetch base English strings
-      const res = await fetch(CONFIG.BASE_URL);
-      if (!res.ok) throw new Error("Failed to load base strings.xml");
+      const res = await fetch(CONFIG.SOURCE_URL);
+      if (!res.ok) throw new Error(`Failed to load source XML (${res.status})`);
       
       const baseText = await res.text();
       const baseParsed = this.parseXML(baseText);
@@ -643,17 +734,18 @@ const app = {
 
       // Load or initialize translations
       this.translated = {};
-      try {
-        const tUrl = CONFIG.BASE_URL.replace(
-          "values/strings.xml",
-          "values-" + lang + "/strings.xml"
-        );
-        const tRes = await fetch(tUrl);
-        if (tRes.ok) {
-          this.translated = this.parseXML(await tRes.text());
+      if (CONFIG.TARGET_URL) {
+        try {
+          const tRes = await fetch(CONFIG.TARGET_URL);
+          if (tRes.ok) {
+            this.translated = this.parseXML(await tRes.text());
+          }
+        } catch (e) {
+          // Translation file not found, use stored translations
+          this.translated = stored.translations || {};
         }
-      } catch (e) {
-        // Translation file not found, use stored translations
+      } else {
+        // Use stored translations if no target URL provided
         this.translated = stored.translations || {};
       }
 
@@ -664,6 +756,7 @@ const app = {
       this.setStatus("Loaded successfully");
     } catch (err) {
       this.setStatus("Error: " + err.message);
+      showError("Failed to load configuration: " + err.message);
       console.error(err);
     } finally {
       this.unlock();
@@ -746,7 +839,7 @@ const app = {
     filtered.sort((a, b) => {
       const statusA = this.getStatus(a);
       const statusB = this.getStatus(b);
-      const priority = { missing: 0, placeholder-issue: 1, outdated: 2, ok: 3 };
+      const priority = { missing: 0, "placeholder-issue": 1, outdated: 2, ok: 3 };
       return (priority[statusA.type] || 3) - (priority[statusB.type] || 3);
     });
 
@@ -771,7 +864,7 @@ const app = {
     }
 
     // Check if English text changed
-    const stored = this.getStoredState(this.currentLang);
+    const stored = this.getStoredState(CONFIG.LANGUAGE);
     const previousBase = stored.basePerKey || {};
     const previousHash = previousBase[key] ? previousBase[key].hash : null;
     const currentHash = this.base[key].hash;
@@ -825,7 +918,7 @@ const app = {
       row.className = status.class;
       row.id = `row-${key}`;
 
-      const stored = this.getStoredState(this.currentLang);
+      const stored = this.getStoredState(CONFIG.LANGUAGE);
       const previousBase = stored.basePerKey || {};
       const prevText = previousBase[key] ? previousBase[key].text : "";
       const hasChanged = prevText && prevText !== en;
@@ -872,7 +965,7 @@ const app = {
   onChange(el) {
     const key = el.getAttribute("data-key");
     this.translated[key] = el.value;
-    this.saveState(this.currentLang);
+    this.saveState(CONFIG.LANGUAGE);
     const row = document.getElementById(`row-${key}`);
     const status = this.getStatus(key);
     row.className = status.class;
@@ -881,7 +974,7 @@ const app = {
   debouncedSave() {
     clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
-      this.saveState(this.currentLang);
+      this.saveState(CONFIG.LANGUAGE);
     }, CONFIG.DEBOUNCE_SAVE);
   },
 
@@ -926,12 +1019,13 @@ const app = {
 
   updateStats() {
     const keys = Object.keys(this.base);
-    let missing = 0, outdated = 0;
+    let missing = 0, outdated = 0, completed = 0;
 
     keys.forEach(key => {
       const status = this.getStatus(key);
       if (status.type === "missing") missing++;
-      if (status.type === "outdated") outdated++;
+      else if (status.type === "outdated") outdated++;
+      else if (status.type === "ok") completed++;
     });
 
     document.getElementById("statsTotal").textContent = `Total: ${keys.length}`;
@@ -940,39 +1034,19 @@ const app = {
   },
 
   /* =========================
-     EXPORT XML
-  ========================= */
-
-  exportXML() {
-    let xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n";
-
-    // Maintain order from base
-    Object.keys(this.base).forEach(key => {
-      const val = this.translated[key];
-      if (!val) return;
-
-      xml += `  <string name="${this.escapeXMLAttr(key)}">${this.escapeXML(val)}</string>\n`;
-    });
-
-    xml += "</resources>";
-
-    this.download(`strings-${this.currentLang}.xml`, xml);
-    this.setStatus("Exported successfully");
-  },
-
-  /* =========================
-     EMAIL
+     EMAIL (MAILTO)
   ========================= */
 
   sendEmail() {
-    const lang = this.currentLang;
+    const lang = CONFIG.LANGUAGE;
     const keys = Object.keys(this.base);
-    let missing = 0, outdated = 0;
+    let missing = 0, outdated = 0, completed = 0;
 
     keys.forEach(key => {
       const status = this.getStatus(key);
       if (status.type === "missing") missing++;
-      if (status.type === "outdated") outdated++;
+      else if (status.type === "outdated") outdated++;
+      else if (status.type === "ok") completed++;
     });
 
     const payload = {
@@ -981,55 +1055,41 @@ const app = {
         total: keys.length,
         missing,
         outdated,
-        translated: keys.length - missing
+        completed,
       },
       translations: this.translated,
       timestamp: new Date().toISOString()
     };
 
+    const subject = encodeURIComponent(`Android Strings Translation - ${lang}`);
     const body = encodeURIComponent(JSON.stringify(payload, null, 2));
 
-    window.location.href =
-      `mailto:you@example.com?subject=Android Strings Translation - ${lang}&body=${body}`;
+    window.location.href = `mailto:${CONFIG.EMAIL}?subject=${subject}&body=${body}`;
 
-    this.setStatus("Opening email...");
+    this.setStatus("Opening email client...");
   },
 
   /* =========================
      UTILITY
   ========================= */
 
+  escapeHTML(str) {
+    const map = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    };
+    return str.replace(/[&<>"']/g, m => map[m]);
+  },
+
   escapeXML(str) {
-    return String(str)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&apos;");
+    return this.escapeHTML(str);
   },
 
   escapeXMLAttr(str) {
-    return this.escapeXML(str);
-  },
-
-  escapeHTML(str) {
-    return String(str)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;");
-  },
-
-  download(name, content) {
-    const blob = new Blob([content], { type: "text/xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    return this.escapeHTML(str);
   },
 
   setStatus(msg) {
@@ -1038,15 +1098,15 @@ const app = {
 
   lock() {
     document.getElementById("loadBtn").disabled = true;
-    document.getElementById("exportBtn").disabled = true;
     document.getElementById("emailBtn").disabled = true;
   },
 
   unlock() {
     document.getElementById("loadBtn").disabled = false;
-    document.getElementById("exportBtn").disabled = this.loaded ? false : true;
-    document.getElementById("emailBtn").disabled = this.loaded ? false : true;
-  }
+    if (this.loaded) {
+      document.getElementById("emailBtn").disabled = false;
+    }
+  },
 };
 
 // Initialize on page load
