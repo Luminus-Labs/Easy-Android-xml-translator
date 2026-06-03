@@ -23,7 +23,7 @@
 
   <div class="quick-help">
     <h3>📝 How it works</h3>
-    <p>Provide the base English strings.xml URL and target language. The tool will automatically guess the translated file location (e.g., <code>values-fr/strings.xml</code> for French) and generate a translator link.</p>
+    <p>Provide the base English strings.xml URL and target language. The tool will automatically guess the translated file location (e.g., <code>values-fr/strings.xml</code> for French) and genera[...]
   </div>
 
   <form id="generatorForm">
@@ -34,7 +34,7 @@
         id="sourceUrl" 
         placeholder="https://raw.githubusercontent.com/user/repo/main/app/src/main/res/values/strings.xml"
         required>
-      <p class="help-text">The raw GitHub URL to the English (base) strings.xml file</p>
+      <p class="help-text">The raw GitHub URL to the English (base) strings.xml file (normal GitHub links are automatically converted)</p>
     </div>
 
     <div class="form-group">
@@ -133,6 +133,15 @@ function selectLanguage(code, name, element) {
   document.getElementById('selectedLangName').textContent = name;
 }
 
+function convertGitHubLinkToRaw(url) {
+  // Convert normal GitHub links to raw links
+  // https://github.com/owner/repo/blob/branch/path/to/file -> https://raw.githubusercontent.com/owner/repo/branch/path/to/file
+  return url.replace(
+    /https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/(.+)/,
+    'https://raw.githubusercontent.com/$1/$2/$3'
+  );
+}
+
 function guessTargetUrl(sourceUrl, langCode) {
   return sourceUrl.replace('/values/strings.xml', `/values-${langCode}/strings.xml`);
 }
@@ -194,13 +203,16 @@ function openTranslator() {
 document.getElementById('generatorForm').addEventListener('submit', (e) => {
   e.preventDefault();
   
-  const sourceUrl = document.getElementById('sourceUrl').value.trim();
+  let sourceUrl = document.getElementById('sourceUrl').value.trim();
   const email = document.getElementById('email').value.trim();
   
   if (!sourceUrl) {
     showError('Please enter a source URL');
     return;
   }
+  
+  // Convert GitHub link to raw link if needed
+  sourceUrl = convertGitHubLinkToRaw(sourceUrl);
   
   if (!validateUrl(sourceUrl)) {
     showError('Invalid source URL. Please check the format.');
