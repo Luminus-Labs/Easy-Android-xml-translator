@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android Strings Translator - URL Generator</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #f5f5f5;
+  color: #333;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 30px;
+}
+
+header {
+  margin-bottom: 30px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 20px;
+}
+
+h1 {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  color: #24292e;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #24292e;
+  font-size: 14px;
+}
+
+input[type="text"],
+input[type="email"],
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+select:focus {
+  outline: none;
+  border-color: #0366d6;
+  box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+}
+
+.help-text {
+  font-size: 12px;
+  color: #666;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary {
+  background: #0366d6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0256b8;
+}
+
+.btn-primary:active {
+  opacity: 0.8;
+}
+
+.btn-secondary {
+  background: #e1e4e8;
+  color: #24292e;
+}
+
+.btn-secondary:hover {
+  background: #d1d5da;
+}
+
+.output-section {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid #eee;
+  display: none;
+}
+
+.output-section.show {
+  display: block;
+}
+
+.output-section h2 {
+  font-size: 18px;
+  margin: 0 0 16px 0;
+  color: #24292e;
+}
+
+.output-box {
+  background: #f6f8fa;
+  border: 1px solid #d1d5da;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+  word-break: break-all;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  color: #24292e;
+  max-height: 200px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  background: #f6f8fa;
+  border-color: #0366d6;
+  color: #0366d6;
+}
+
+.success-message {
+  background: #f0fff4;
+  border: 1px solid #34d399;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+  color: #065f46;
+  font-size: 13px;
+  display: none;
+}
+
+.success-message.show {
+  display: block;
+}
+
+.error-message {
+  background: #ffeef0;
+  border: 1px solid #d73a49;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+  color: #86181e;
+  font-size: 13px;
+  display: none;
+}
+
+.error-message.show {
+  display: block;
+}
+
+.language-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.lang-option {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.lang-option:hover {
+  border-color: #0366d6;
+  background: #f0f5ff;
+}
+
+.lang-option.selected {
+  background: #0366d6;
+  color: white;
+  border-color: #0366d6;
+}
+
+.url-preview {
+  background: #fff8c5;
+  border: 1px solid #d4b40f;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: #24292e;
+}
+
+.url-preview strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #6f42c1;
+}
+
+.url-preview code {
+  display: block;
+  background: white;
+  padding: 8px;
+  border-radius: 3px;
+  margin-top: 8px;
+  font-family: 'Monaco', monospace;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.quick-help {
+  background: #f6f8fa;
+  border: 1px solid #d1d5da;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.quick-help h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #24292e;
+}
+
+.quick-help p {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.quick-help code {
+  background: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  color: #24292e;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <header>
+    <h1>🛠️ Translator URL Generator</h1>
+    <p class="subtitle">Create shareable links for Android string translation</p>
+  </header>
+
+  <div class="quick-help">
+    <h3>📝 How it works</h3>
+    <p>Provide the base English strings.xml URL and target language. The tool will automatically guess the translated file location (e.g., <code>values-fr/strings.xml</code> for French) and generate a translator link.</p>
+  </div>
+
+  <form id="generatorForm">
+    <div class="form-group">
+      <label for="sourceUrl">Base Strings.xml URL *</label>
+      <input 
+        type="text" 
+        id="sourceUrl" 
+        placeholder="https://raw.githubusercontent.com/user/repo/main/app/src/main/res/values/strings.xml"
+        required>
+      <p class="help-text">The raw GitHub URL to the English (base) strings.xml file</p>
+    </div>
+
+    <div class="form-group">
+      <label>Target Language *</label>
+      <div class="language-options" id="languageOptions"></div>
+      <p class="help-text" id="selectedLangHelp" style="display:none;">Selected: <strong id="selectedLangName"></strong></p>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email Address *</label>
+      <input 
+        type="email" 
+        id="email" 
+        placeholder="translator@example.com"
+        required>
+      <p class="help-text">Where translations will be sent</p>
+    </div>
+
+    <div class="button-group">
+      <button type="submit" class="btn-primary">Generate URL</button>
+      <button type="reset" class="btn-secondary">Clear</button>
+    </div>
+  </form>
+
+  <div class="error-message" id="errorMessage"></div>
+  <div class="success-message" id="successMessage">✓ URL generated successfully!</div>
+
+  <div class="output-section" id="outputSection">
+    <h2>📋 Generated URL</h2>
+    
+    <div class="url-preview" id="urlPreview">
+      <strong>Translator Link:</strong>
+      <code id="generatedUrl"></code>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <button type="button" class="btn-primary" onclick="copyToClipboard()">📋 Copy URL</button>
+      <button type="button" class="btn-secondary" onclick="openTranslator()">🚀 Open Translator</button>
+    </div>
+
+    <div style="margin-top: 20px; padding: 16px; background: #f6f8fa; border-radius: 4px; font-size: 12px; color: #666;">
+      <strong>Share this URL with translators:</strong>
+      <p style="margin: 8px 0 0 0; line-height: 1.6;">
+        - They can paste it in their browser<br>
+        - Load the strings to start translating<br>
+        - Submit translations via email<br>
+        - It works for any repository!
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const LANGUAGES = [
+  { code: 'fr', name: 'French (fr)' },
+  { code: 'es', name: 'Spanish (es)' },
+  { code: 'de', name: 'German (de)' },
+  { code: 'it', name: 'Italian (it)' },
+  { code: 'pt', name: 'Portuguese (pt)' },
+  { code: 'ja', name: 'Japanese (ja)' },
+  { code: 'zh', name: 'Chinese (zh)' },
+  { code: 'ru', name: 'Russian (ru)' },
+  { code: 'ar', name: 'Arabic (ar)' },
+  { code: 'ko', name: 'Korean (ko)' },
+  { code: 'nl', name: 'Dutch (nl)' },
+  { code: 'tr', name: 'Turkish (tr)' },
+  { code: 'pl', name: 'Polish (pl)' },
+  { code: 'hi', name: 'Hindi (hi)' },
+  { code: 'id', name: 'Indonesian (id)' },
+];
+
+let selectedLanguage = null;
+
+function initLanguageOptions() {
+  const container = document.getElementById('languageOptions');
+  LANGUAGES.forEach(lang => {
+    const btn = document.createElement('div');
+    btn.className = 'lang-option';
+    btn.textContent = lang.code.toUpperCase();
+    btn.dataset.code = lang.code;
+    btn.dataset.name = lang.name;
+    btn.onclick = () => selectLanguage(lang.code, lang.name, btn);
+    container.appendChild(btn);
+  });
+}
+
+function selectLanguage(code, name, element) {
+  document.querySelectorAll('.lang-option').forEach(opt => {
+    opt.classList.remove('selected');
+  });
+  element.classList.add('selected');
+  selectedLanguage = { code, name };
+  document.getElementById('selectedLangHelp').style.display = 'block';
+  document.getElementById('selectedLangName').textContent = name;
+}
+
+function guessTargetUrl(sourceUrl, langCode) {
+  // Replace "values/strings.xml" with "values-{lang}/strings.xml"
+  return sourceUrl.replace('/values/strings.xml', `/values-${langCode}/strings.xml`);
+}
+
+function validateUrl(urlString) {
+  try {
+    new URL(urlString);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function showError(message) {
+  const errorEl = document.getElementById('errorMessage');
+  errorEl.textContent = message;
+  errorEl.classList.add('show');
+  document.getElementById('successMessage').classList.remove('show');
+}
+
+function showSuccess() {
+  document.getElementById('errorMessage').classList.remove('show');
+  document.getElementById('successMessage').classList.add('show');
+}
+
+function generateTranslatorUrl(sourceUrl, langCode, email) {
+  const baseUrl = window.location.origin + window.location.pathname.replace('generator.html', 'index.html');
+  const targetUrl = guessTargetUrl(sourceUrl, langCode);
+  
+  const params = new URLSearchParams({
+    source: sourceUrl,
+    target: targetUrl,
+    lang: langCode,
+    email: email
+  });
+  
+  return `${baseUrl}?${params.toString()}`;
+}
+
+function copyToClipboard() {
+  const url = document.getElementById('generatedUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => {
+      btn.textContent = originalText;
+    }, 2000);
+  }).catch(() => {
+    alert('Failed to copy. Please copy manually.');
+  });
+}
+
+function openTranslator() {
+  const url = document.getElementById('generatedUrl').textContent;
+  window.open(url, '_blank');
+}
+
+document.getElementById('generatorForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  
+  const sourceUrl = document.getElementById('sourceUrl').value.trim();
+  const email = document.getElementById('email').value.trim();
+  
+  // Validate inputs
+  if (!sourceUrl) {
+    showError('Please enter a source URL');
+    return;
+  }
+  
+  if (!validateUrl(sourceUrl)) {
+    showError('Invalid source URL. Please check the format.');
+    return;
+  }
+  
+  if (!sourceUrl.includes('/values/strings.xml')) {
+    showError('Source URL must end with "/values/strings.xml"');
+    return;
+  }
+  
+  if (!selectedLanguage) {
+    showError('Please select a target language');
+    return;
+  }
+  
+  if (!email) {
+    showError('Please enter an email address');
+    return;
+  }
+  
+  if (!email.includes('@')) {
+    showError('Please enter a valid email address');
+    return;
+  }
+  
+  try {
+    const translatorUrl = generateTranslatorUrl(sourceUrl, selectedLanguage.code, email);
+    
+    document.getElementById('generatedUrl').textContent = translatorUrl;
+    document.getElementById('outputSection').classList.add('show');
+    showSuccess();
+  } catch (err) {
+    showError('Error generating URL: ' + err.message);
+  }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initLanguageOptions();
+});
+
+</script>
+
+</body>
+</html>
