@@ -189,23 +189,36 @@ const app = {
     }
     
     showConfigInfo();
+    // Auto-load when page loads with valid config
+    this.load();
   },
 
   parseXML(text) {
+    console.log("=== parseXML called ===");
+    console.log("Input text length:", text.length);
+    
     const parser = new DOMParser();
     const xml = parser.parseFromString(text, "text/xml");
     
+    console.log("XML parsed. Root element:", xml.documentElement.nodeName);
+    
     if (xml.documentElement.nodeName === "parsererror") {
+      console.error("XML parse error detected!");
       throw new Error("Invalid XML format");
     }
 
     const map = {};
 
-    // Query all string elements regardless of namespace
-    xml.querySelectorAll("string").forEach(node => {
+    // Query all string elements
+    const stringElements = xml.querySelectorAll("string");
+    console.log("Found string elements:", stringElements.length);
+    
+    stringElements.forEach((node, idx) => {
       const name = node.getAttribute("name");
+      const text = node.textContent || "";
       if (name) {
-        map[name] = node.textContent || "";
+        map[name] = text;
+        if (idx < 3) console.log(`  [${idx}] ${name}: "${text.substring(0, 50)}"`);
       }
     });
 
@@ -233,7 +246,8 @@ const app = {
       }
     });
 
-    console.log("Parsed XML map:", map);
+    console.log("=== parseXML complete ===");
+    console.log("Total keys found:", Object.keys(map).length);
     return map;
   },
 
@@ -291,15 +305,14 @@ const app = {
     try {
       const lang = CONFIG.LANGUAGE;
 
-      console.log("Starting load process for language:", lang);
+      console.log("========== LOAD START ==========");
+      console.log("Language:", lang);
       const res = await this.fetchWithCORS(CONFIG.SOURCE_URL);
       
       const baseText = await res.text();
-      console.log("Fetched text length:", baseText.length);
-      console.log("First 500 chars:", baseText.substring(0, 500));
+      console.log("Fetched base text length:", baseText.length);
       
       const baseParsed = this.parseXML(baseText);
-      console.log("Parsed base strings count:", Object.keys(baseParsed).length);
 
       const stored = this.getStoredState(lang);
       const previousBase = stored.basePerKey || {};
@@ -311,19 +324,21 @@ const app = {
         this.base[key] = { text, hash };
       });
 
-      console.log("Base loaded with keys:", Object.keys(this.base).length);
+      console.log("✅ Base loaded with", Object.keys(this.base).length, "keys");
 
       this.translated = {};
       if (CONFIG.TARGET_URL) {
         try {
+          console.log("Loading target/translation file...");
           const tRes = await this.fetchWithCORS(CONFIG.TARGET_URL);
           if (tRes.ok) {
             const translatedText = await tRes.text();
+            console.log("Fetched target text length:", translatedText.length);
             this.translated = this.parseXML(translatedText);
-            console.log("Target loaded with keys:", Object.keys(this.translated).length);
+            console.log("✅ Target loaded with", Object.keys(this.translated).length, "keys");
           }
         } catch (e) {
-          console.log("Failed to load target, using stored:", e.message);
+          console.log("❌ Failed to load target:", e.message);
           this.translated = stored.translations || {};
         }
       } else {
@@ -334,10 +349,11 @@ const app = {
       this.loaded = true;
       this.render();
       this.setStatus("Loaded successfully");
+      console.log("========== LOAD COMPLETE ==========");
     } catch (err) {
       this.setStatus("Error: " + err.message);
       showError("Failed to load configuration: " + err.message);
-      console.error(err);
+      console.error("❌ ERROR:", err);
     } finally {
       this.unlock();
     }
