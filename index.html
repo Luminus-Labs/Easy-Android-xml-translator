@@ -201,6 +201,7 @@ const app = {
 
     const map = {};
 
+    // Query all string elements regardless of namespace
     xml.querySelectorAll("string").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
@@ -208,6 +209,7 @@ const app = {
       }
     });
 
+    // Query all plurals elements
     xml.querySelectorAll("plurals").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
@@ -219,6 +221,7 @@ const app = {
       }
     });
 
+    // Query all string-array elements
     xml.querySelectorAll("string-array").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
@@ -230,6 +233,7 @@ const app = {
       }
     });
 
+    console.log("Parsed XML map:", map);
     return map;
   },
 
@@ -244,6 +248,8 @@ const app = {
   },
 
   async fetchWithCORS(url) {
+    console.log("Attempting to fetch:", url);
+    
     // Try direct fetch first (for same-origin or already-CORS-enabled URLs)
     try {
       const res = await fetch(url, {
@@ -251,19 +257,26 @@ const app = {
           'Accept': 'text/plain, application/xml',
         }
       });
-      if (res.ok) return res;
+      if (res.ok) {
+        console.log("Direct fetch succeeded");
+        return res;
+      }
     } catch (e) {
-      // Fall through to CORS proxies
+      console.log("Direct fetch failed:", e.message);
     }
 
     // Try each CORS proxy
     for (const proxy of CONFIG.CORS_PROXIES) {
       try {
         const corsUrl = proxy + encodeURIComponent(url);
+        console.log("Trying CORS proxy:", proxy);
         const res = await fetch(corsUrl);
-        if (res.ok) return res;
+        if (res.ok) {
+          console.log("CORS proxy succeeded:", proxy);
+          return res;
+        }
       } catch (e) {
-        // Continue to next proxy
+        console.log("CORS proxy failed:", proxy, e.message);
         continue;
       }
     }
@@ -278,10 +291,15 @@ const app = {
     try {
       const lang = CONFIG.LANGUAGE;
 
+      console.log("Starting load process for language:", lang);
       const res = await this.fetchWithCORS(CONFIG.SOURCE_URL);
       
       const baseText = await res.text();
+      console.log("Fetched text length:", baseText.length);
+      console.log("First 500 chars:", baseText.substring(0, 500));
+      
       const baseParsed = this.parseXML(baseText);
+      console.log("Parsed base strings count:", Object.keys(baseParsed).length);
 
       const stored = this.getStoredState(lang);
       const previousBase = stored.basePerKey || {};
@@ -293,14 +311,19 @@ const app = {
         this.base[key] = { text, hash };
       });
 
+      console.log("Base loaded with keys:", Object.keys(this.base).length);
+
       this.translated = {};
       if (CONFIG.TARGET_URL) {
         try {
           const tRes = await this.fetchWithCORS(CONFIG.TARGET_URL);
           if (tRes.ok) {
-            this.translated = this.parseXML(await tRes.text());
+            const translatedText = await tRes.text();
+            this.translated = this.parseXML(translatedText);
+            console.log("Target loaded with keys:", Object.keys(this.translated).length);
           }
         } catch (e) {
+          console.log("Failed to load target, using stored:", e.message);
           this.translated = stored.translations || {};
         }
       } else {
