@@ -347,7 +347,10 @@ const app = {
 
       this.saveState(lang);
       this.loaded = true;
-      this.render();
+      
+      console.log("About to call applyFilters. base keys:", Object.keys(this.base).length);
+      this.applyFilters();
+      
       this.setStatus("Loaded successfully");
       console.log("========== LOAD COMPLETE ==========");
     } catch (err) {
@@ -397,6 +400,7 @@ const app = {
   },
 
   applyFilters() {
+    console.log("applyFilters called. base keys:", Object.keys(this.base).length);
     const keys = Object.keys(this.base);
     
     let filtered = keys.filter(key => {
@@ -429,6 +433,7 @@ const app = {
     });
 
     this.filteredKeys = filtered;
+    console.log("Filtered keys:", this.filteredKeys.length);
     this.render();
   },
 
@@ -468,12 +473,14 @@ const app = {
   },
 
   render() {
+    console.log("render called. filteredKeys:", this.filteredKeys.length, "loaded:", this.loaded);
     const tbody = document.getElementById("tbody");
     const emptyState = document.getElementById("emptyState");
 
     if (this.filteredKeys.length === 0) {
       tbody.innerHTML = "";
       emptyState.style.display = this.loaded ? "block" : "none";
+      console.log("No filtered keys, showing empty state");
       return;
     }
 
