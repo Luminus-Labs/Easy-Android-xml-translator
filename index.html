@@ -108,6 +108,10 @@ const CONFIG = {
   EMAIL: urlParams.get('email'),
   STORAGE_PREFIX: "translator_",
   DEBOUNCE_SAVE: 1000,
+  CORS_PROXIES: [
+    'https://cors-anywhere.herokuapp.com/',
+    'https://api.allorigins.win/raw?url=',
+  ],
 };
 
 function validateConfig() {
@@ -239,6 +243,34 @@ const app = {
     return Math.abs(hash).toString(36);
   },
 
+  async fetchWithCORS(url) {
+    // Try direct fetch first (for same-origin or already-CORS-enabled URLs)
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'text/plain, application/xml',
+        }
+      });
+      if (res.ok) return res;
+    } catch (e) {
+      // Fall through to CORS proxies
+    }
+
+    // Try each CORS proxy
+    for (const proxy of CONFIG.CORS_PROXIES) {
+      try {
+        const corsUrl = proxy + encodeURIComponent(url);
+        const res = await fetch(corsUrl);
+        if (res.ok) return res;
+      } catch (e) {
+        // Continue to next proxy
+        continue;
+      }
+    }
+
+    throw new Error(`Failed to fetch URL from all sources. The URL may not be accessible or may not support cross-origin requests. Please ensure the URL is a direct link to the raw XML file.`);
+  },
+
   async load() {
     this.setStatus("Loading...");
     this.lock();
@@ -246,8 +278,7 @@ const app = {
     try {
       const lang = CONFIG.LANGUAGE;
 
-      const res = await fetch(CONFIG.SOURCE_URL);
-      if (!res.ok) throw new Error(`Failed to load source XML (${res.status})`);
+      const res = await this.fetchWithCORS(CONFIG.SOURCE_URL);
       
       const baseText = await res.text();
       const baseParsed = this.parseXML(baseText);
@@ -265,7 +296,7 @@ const app = {
       this.translated = {};
       if (CONFIG.TARGET_URL) {
         try {
-          const tRes = await fetch(CONFIG.TARGET_URL);
+          const tRes = await this.fetchWithCORS(CONFIG.TARGET_URL);
           if (tRes.ok) {
             this.translated = this.parseXML(await tRes.text());
           }
