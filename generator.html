@@ -44,13 +44,12 @@
     </div>
 
     <div class="form-group">
-      <label for="email">Email Address *</label>
+      <label for="email">Email Address (optional)</label>
       <input 
         type="email" 
         id="email" 
-        placeholder="translator@example.com"
-        required>
-      <p class="help-text">Where translations will be sent</p>
+        placeholder="translator@example.com">
+      <p class="help-text">Leave blank if you don't want translations sent via email</p>
     </div>
 
     <div class="button-group">
@@ -80,7 +79,7 @@
       <p style="margin: 8px 0 0 0; line-height: 1.6;">
         - They can paste it in their browser<br>
         - Load the strings to start translating<br>
-        - Submit translations via email<br>
+        - Submit translations via email (if email provided)<br>
         - It works for any repository!
       </p>
     </div>
@@ -175,8 +174,12 @@ function generateTranslatorUrl(sourceUrl, langCode, email) {
     source: sourceUrl,
     target: targetUrl,
     lang: langCode,
-    email: email
   });
+  
+  // Only add email if provided
+  if (email) {
+    params.append('email', email);
+  }
   
   return `${baseUrl}?${params.toString()}`;
 }
@@ -229,12 +232,8 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
     return;
   }
   
-  if (!email) {
-    showError('Please enter an email address');
-    return;
-  }
-  
-  if (!email.includes('@')) {
+  // Email is now optional - only validate if provided
+  if (email && !email.includes('@')) {
     showError('Please enter a valid email address');
     return;
   }
