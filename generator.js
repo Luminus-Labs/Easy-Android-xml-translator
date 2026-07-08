@@ -97,10 +97,63 @@ function generateTranslatorUrl(sourceUrl, langCode) {
   return `${baseUrl}?${params.toString()}`;
 }
 
+function legacyCopyToClipboard(text) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  // Keep it in the viewport but invisible — off-screen elements are
+  // ignored by execCommand('copy') in some browsers.
+  textarea.style.position = 'fixed';
+  textarea.style.top = '0';
+  textarea.style.left = '0';
+  textarea.style.width = '2em';
+  textarea.style.height = '2em';
+  textarea.style.padding = '0';
+  textarea.style.border = 'none';
+  textarea.style.outline = 'none';
+  textarea.style.boxShadow = 'none';
+  textarea.style.background = 'transparent';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  let succeeded = false;
+  try {
+    succeeded = document.execCommand('copy');
+  } catch {
+    succeeded = false;
+  }
+
+  document.body.removeChild(textarea);
+  return succeeded;
+}
+
+function copyTextToClipboard(text) {
+  // navigator.clipboard requires a secure context (HTTPS) and can reject
+  // for other reasons too (iframe without clipboard-write permission,
+  // unfocused document), so fall back to the legacy approach on failure.
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => {
+      if (!legacyCopyToClipboard(text)) {
+        throw new Error('Copy failed');
+      }
+    });
+  }
+  return legacyCopyToClipboard(text)
+    ? Promise.resolve()
+    : Promise.reject(new Error('Copy failed'));
+}
+
 function copyToClipboard(event) {
   const url = document.getElementById('generatedUrl').textContent;
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = event.currentTarget;
+  // Grab this now — event.currentTarget is reset to null once the event
+  // finishes dispatching, and our copy call is async, so reading it inside
+  // .then() would be too late and throw (making a successful copy look
+  // like a failure).
+  const btn = event.currentTarget;
+  copyTextToClipboard(url).then(() => {
     const originalText = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(() => {
