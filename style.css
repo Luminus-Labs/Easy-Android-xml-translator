@@ -1049,3 +1049,92 @@ tr.row-placeholder-issue {
     display: none;
   }
 }
+
+/* =========================
+   MULTI-MODE PAGES
+========================= */
+
+.mode-panel {
+  margin-top: 24px;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.about-card {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.about-card h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.about-card p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.generator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.95fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.generator-main,
+.generator-workflow {
+  min-width: 0;
+}
+
+.generator-workflow .quick-help {
+  margin-bottom: 16px;
+}
+
+.workflow-card,
+.about-copy {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.workflow-card h3,
+.about-copy h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.workflow-card ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--color-text-secondary);
+}
+
+.workflow-card li {
+  margin-bottom: 8px;
+}
+
+.about-copy p {
+  margin: 0 0 12px 0;
+  line-height: 1.6;
+}
+
+.about-copy p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 960px) {
+  .generator-layout {
+    grid-template-columns: 1fr;
+  }
+}

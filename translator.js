@@ -16,6 +16,8 @@ const CONFIG = {
   ],
 };
 
+let translatorInitialized = false;
+
 function validateConfig() {
   const errors = [];
 
@@ -88,7 +90,6 @@ const app = {
     showConfigInfo();
     this.load();
   },
-
   parseXML(text) {
     console.log("=== parseXML called ===");
     console.log("Input text length:", text.length);
@@ -513,6 +514,19 @@ const app = {
   },
 };
 
-window.addEventListener("DOMContentLoaded", () => {
+window.app = app;
+
+function initTranslatorPage() {
+  if (translatorInitialized) {
+    return;
+  }
+
+  translatorInitialized = true;
   app.init();
-});
+}
+
+window.initTranslatorPage = initTranslatorPage;
+
+if (window.APP_MODE === 'translator') {
+  document.addEventListener("DOMContentLoaded", initTranslatorPage);
+}

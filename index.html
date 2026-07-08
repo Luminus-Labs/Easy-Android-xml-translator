@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>URL Generator - Android Strings Translator</title>
+<title>Easy Android XML Translator</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
 </head>
@@ -16,69 +16,185 @@
 
 <div class="container">
   <div class="navbar">
-    <h1><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Translator URL Generator</h1>
+    <h1><i class="fa-solid fa-language" aria-hidden="true"></i> Easy Android XML Translator</h1>
     <div class="navbar-spacer"></div>
-    <a href="translator.html">Translator</a>
-    <a href="index.html" class="active">URL Generator</a>
+    <a href="?mode=generator" data-mode-link="generator">Link Generator</a>
+    <a href="?mode=translator" data-mode-link="translator">XML Translator</a>
+    <a href="?mode=about" data-mode-link="about">About</a>
   </div>
 
-  <div class="quick-help">
-    <h3><i class="fa-regular fa-circle-question" aria-hidden="true"></i> How it works</h3>
-    <p>Provide the base English strings.xml URL and target language. The tool will automatically guess the translated file location (e.g., <code>values-fr/strings.xml</code> for French) and generate the correct translator link.</p>
-  </div>
+  <section id="mode-generator" class="mode-panel">
+    <div class="generator-layout">
+      <div class="generator-main">
+        <div class="quick-help">
+          <h3><i class="fa-regular fa-circle-question" aria-hidden="true"></i> Link Generator</h3>
+          <p>Provide the base English strings.xml URL and target language. The tool automatically guesses the translated file location and generates a translator link.</p>
+        </div>
 
-  <form id="generatorForm">
-    <div class="form-group">
-      <label for="sourceUrl">Base Strings.xml URL *</label>
-      <input 
-        type="text" 
-        id="sourceUrl" 
-        placeholder="https://raw.githubusercontent.com/user/repo/main/app/src/main/res/values/strings.xml"
-        required>
-      <p class="help-text">The raw GitHub URL to the English (base) strings.xml file (normal GitHub links are automatically converted)</p>
+        <form id="generatorForm">
+          <div class="form-group">
+            <label for="sourceUrl">Base Strings.xml URL *</label>
+            <input
+              type="text"
+              id="sourceUrl"
+              placeholder="https://raw.githubusercontent.com/user/repo/main/app/src/main/res/values/strings.xml"
+              required>
+            <p class="help-text">The raw GitHub URL to the English (base) strings.xml file. Normal GitHub links are automatically converted.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Target Language *</label>
+            <div class="language-options" id="languageOptions"></div>
+            <p class="help-text" id="selectedLangHelp" style="display:none;">Selected: <strong id="selectedLangName"></strong></p>
+          </div>
+
+          <div class="button-group">
+            <button type="submit" class="btn-primary"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Generate URL</button>
+            <button type="reset" class="btn-secondary"><i class="fa-solid fa-eraser" aria-hidden="true"></i> Clear</button>
+          </div>
+        </form>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> URL generated successfully!</div>
+
+        <div class="output-section" id="outputSection">
+          <h2><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Generated URL</h2>
+
+          <div class="url-preview" id="urlPreview">
+            <strong>Translator Link:</strong>
+            <code id="generatedUrl"></code>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <button type="button" class="btn-primary" onclick="copyToClipboard(event)"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy URL</button>
+            <button type="button" class="btn-secondary" onclick="openTranslator()"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open Translator</button>
+          </div>
+
+          <div style="margin-top: 20px; padding: 16px; background: var(--color-surface-2); border-radius: var(--radius-lg); font-size: 12px; color: var(--color-text-secondary);">
+            <strong>Share this URL with translators:</strong>
+            <p style="margin: 8px 0 0 0; line-height: 1.6;">
+              - They can paste it in their browser<br>
+              - Load the strings to start translating<br>
+              - It works for any repository!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="generator-workflow">
+        <div class="quick-help">
+          <h3><i class="fa-regular fa-compass" aria-hidden="true"></i> Workflow</h3>
+          <p>The app works in two steps: first generate a translator link, then open that link to translate the XML in the browser. The link carries the source file, target file, and language so the translator mode knows what to load.</p>
+        </div>
+
+        <div class="workflow-card">
+          <h3>How it flows</h3>
+          <ol>
+            <li>Paste the raw English strings.xml URL.</li>
+            <li>Choose the target language.</li>
+            <li>Generate the translator link.</li>
+            <li>Open the link in translator mode.</li>
+            <li>Edit translations directly and keep working from the same page.</li>
+          </ol>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="mode-translator" class="mode-panel">
+    <header>
+      <div class="controls">
+        <button id="loadBtn" onclick="app.load()" class="btn-primary">Load</button>
+      </div>
+    </header>
+
+    <div class="quick-help">
+      <h3><i class="fa-regular fa-circle-question" aria-hidden="true"></i> XML Translator</h3>
+      <p>Open this mode through a generated translator link. It loads the source and target XML from the URL parameters and lets you edit translations directly in the browser.</p>
     </div>
 
-    <div class="form-group">
-      <label>Target Language *</label>
-      <div class="language-options" id="languageOptions"></div>
-      <p class="help-text" id="selectedLangHelp" style="display:none;">Selected: <strong id="selectedLangName"></strong></p>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-color" style="background: rgba(40, 167, 69, 0.15);"></div>
+        <span>Translated</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: rgba(215, 58, 73, 0.15);"></div>
+        <span>Missing</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: rgba(255, 193, 59, 0.15);"></div>
+        <span>Outdated</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: rgba(255, 107, 107, 0.15);"></div>
+        <span>Placeholder Issue</span>
+      </div>
     </div>
 
-    <div class="button-group">
-      <button type="submit" class="btn-primary"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Generate URL</button>
-      <button type="reset" class="btn-secondary"><i class="fa-solid fa-eraser" aria-hidden="true"></i> Clear</button>
-    </div>
-  </form>
-
-  <div class="error-message" id="errorMessage"></div>
-  <div class="success-message" id="successMessage"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> URL generated successfully!</div>
-
-  <div class="output-section" id="outputSection">
-    <h2><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Generated URL</h2>
-    
-    <div class="url-preview" id="urlPreview">
-      <strong>Translator Link:</strong>
-      <code id="generatedUrl"></code>
+    <div class="filter-section">
+      <div class="filter-buttons">
+        <button class="filter-btn active" onclick="app.setFilter('all')">All Strings</button>
+        <button class="filter-btn" onclick="app.setFilter('missing')">Missing</button>
+        <button class="filter-btn" onclick="app.setFilter('outdated')">Outdated</button>
+        <button class="filter-btn" onclick="app.setFilter('needs-work')">Needs Work</button>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search" placeholder="Search by key..." onkeyup="app.onSearch(event)">
+      </div>
     </div>
 
-    <div style="margin-top: 16px;">
-      <button type="button" class="btn-primary" onclick="copyToClipboard(event)"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy URL</button>
-      <button type="button" class="btn-secondary" onclick="openTranslator()"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open Translator</button>
+    <div class="stats">
+      <span id="statsTotal">Total: 0</span>
+      <span id="statsMissing">Missing: 0</span>
+      <span id="statsOutdated">Outdated: 0</span>
+      <span id="statusMsg" class="status">Idle</span>
     </div>
 
-    <div style="margin-top: 20px; padding: 16px; background: var(--color-surface-2); border-radius: var(--radius-lg); font-size: 12px; color: var(--color-text-secondary);">
-      <strong>Share this URL with translators:</strong>
-      <p style="margin: 8px 0 0 0; line-height: 1.6;">
-        - They can paste it in their browser<br>
-        - Load the strings to start translating<br>
-        - It works for any repository!
-      </p>
+    <div class="config-info" id="configInfo"></div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 180px;">Key</th>
+            <th style="width: 1fr; min-width: 300px;">English</th>
+            <th style="width: 1fr; min-width: 300px;">Translation</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
     </div>
-  </div>
+
+    <div id="emptyState" class="empty-state" style="display:none;">
+      <h3>No strings found</h3>
+      <p>Load a strings.xml file to get started</p>
+    </div>
+
+    <div id="errorState" class="error-state" style="display:none;">
+      <h3>Configuration Error</h3>
+      <p id="errorMsg"></p>
+    </div>
+  </section>
+
+  <section id="mode-about" class="mode-panel">
+    <div class="quick-help">
+      <h3><i class="fa-regular fa-circle-info" aria-hidden="true"></i> About</h3>
+      <p>Lightweight and free web tool to let human contributors translate Android strings.xml files for you. You will get the translated xml file via email or github issues. No account or configuration required, just a link containing all the info.</p>
+    </div>
+
+    <div class="about-copy">
+      <h2>REPOSITORY_UPSTREAM</h2>
+      <p>Review schematics, deploy manual local patches, and report infrastructure issues directly over the main codebase registry branch.</p>
+      <p><a href="https://github.com/Luminus-Labs/Easy-Android-xml-translator" target="_blank" rel="noreferrer noopener"><strong>ACCESS_GITHUB_REPOSITORY</strong></a></p>
+    </div>
+  </section>
 </div>
 
 <script src="theme.js"></script>
+<script src="main.js"></script>
 <script src="generator.js"></script>
+<script src="translator.js"></script>
 
 </body>
 </html>

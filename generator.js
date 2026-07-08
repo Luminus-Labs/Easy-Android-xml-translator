@@ -17,9 +17,14 @@ const LANGUAGES = [
 ];
 
 let selectedLanguage = null;
+let generatorInitialized = false;
 
 function initLanguageOptions() {
   const container = document.getElementById('languageOptions');
+  if (!container || container.childElementCount > 0) {
+    return;
+  }
+
   LANGUAGES.forEach(lang => {
     const btn = document.createElement('div');
     btn.className = 'lang-option';
@@ -33,6 +38,11 @@ function initLanguageOptions() {
 
 function selectLanguage(code, name, element) {
   document.querySelectorAll('.lang-option').forEach(opt => {
+  if (generatorInitialized) {
+    return;
+  }
+
+  generatorInitialized = true;
     opt.classList.remove('selected');
   });
   element.classList.add('selected');
@@ -74,10 +84,11 @@ function showSuccess() {
 }
 
 function generateTranslatorUrl(sourceUrl, langCode) {
-  const baseUrl = window.location.origin + window.location.pathname.replace('generator.html', 'index.html');
+  const baseUrl = window.location.origin + window.location.pathname;
   const targetUrl = guessTargetUrl(sourceUrl, langCode);
 
   const params = new URLSearchParams({
+    mode: 'translator',
     source: sourceUrl,
     target: targetUrl,
     lang: langCode,
@@ -143,6 +154,12 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+function initGeneratorPage() {
   initLanguageOptions();
-});
+}
+
+window.initGeneratorPage = initGeneratorPage;
+
+if (window.APP_MODE === 'generator') {
+  document.addEventListener('DOMContentLoaded', initGeneratorPage);
+}
