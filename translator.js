@@ -118,14 +118,26 @@ const app = {
       }
     });
 
+    const types = {};
+    stringElements.forEach(node => {
+      const name = node.getAttribute("name");
+      if (name) types[name] = "string";
+    });
+
     xml.querySelectorAll("plurals").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
-        const items = [];
+        // Keyed by quantity ("zero"/"one"/"two"/"few"/"many"/"other") instead of
+        // flattening by document order — different languages define different
+        // numbers of plural forms (e.g. English has 2, Russian/Portuguese have more),
+        // so positional joining silently misaligns them.
+        const quantities = {};
         node.querySelectorAll("item").forEach(item => {
-          items.push(item.textContent || "");
+          const quantity = item.getAttribute("quantity") || "other";
+          quantities[quantity] = item.textContent || "";
         });
-        map[name] = items.join(" | ");
+        map[name] = { quantities };
+        types[name] = "plural";
       }
     });
 
@@ -137,12 +149,26 @@ const app = {
           items.push(item.textContent || "");
         });
         map[name] = items.join(" | ");
+        types[name] = "array";
       }
     });
 
     console.log("=== parseXML complete ===");
     console.log("Total keys found:", Object.keys(map).length);
-    return map;
+    return { map, types };
+  },
+
+  PLURAL_ORDER: ["zero", "one", "two", "few", "many", "other"],
+
+  isPluralValue(v) {
+    return !!(v && typeof v === "object" && v.quantities);
+  },
+
+  formatPluralDisplay(quantities) {
+    return this.PLURAL_ORDER
+      .filter(q => quantities[q] !== undefined)
+      .map(q => `${q}: ${quantities[q]}`)
+      .join(" | ");
   },
 
   hashString(str) {
@@ -204,15 +230,22 @@ const app = {
       const baseText = await res.text();
       console.log("Fetched base text length:", baseText.length);
 
-      const baseParsed = this.parseXML(baseText);
+      const { map: baseParsed, types: baseTypes } = this.parseXML(baseText);
+      this.types = baseTypes;
 
       const stored = this.getStoredState(lang);
 
       this.base = {};
       Object.keys(baseParsed).forEach(key => {
-        const text = baseParsed[key];
-        const hash = this.hashString(text);
-        this.base[key] = { text, hash };
+        const raw = baseParsed[key];
+        if (this.isPluralValue(raw)) {
+          const flatText = this.formatPluralDisplay(raw.quantities);
+          this.base[key] = { text: flatText, hash: this.hashString(flatText), quantities: raw.quantities };
+        } else {
+          const text = raw;
+          const hash = this.hashString(text);
+          this.base[key] = { text, hash };
+        }
       });
 
       console.log("✅ Base loaded with", Object.keys(this.base).length, "keys");
@@ -225,7 +258,8 @@ const app = {
           if (tRes.ok) {
             const translatedText = await tRes.text();
             console.log("Fetched target text length:", translatedText.length);
-            this.translated = this.parseXML(translatedText);
+            const { map: targetParsed } = this.parseXML(translatedText);
+            this.translated = targetParsed;
             console.log("✅ Target loaded with", Object.keys(this.translated).length, "keys");
           }
         } catch (e) {
@@ -329,21 +363,38 @@ const app = {
   },
 
   getStatus(key) {
-    const en = this.base[key].text;
-    const tr = this.translated[key] || "";
+    const baseData = this.base[key];
+    const trRaw = this.translated[key];
 
-    if (!tr) {
-      return { type: "missing", badge: "missing", class: "row-missing" };
-    }
-
-    if (!this.validatePlaceholders(en, tr)) {
-      return { type: "placeholder-issue", badge: "placeholder issue", class: "row-placeholder-issue" };
+    if (baseData.quantities) {
+      // Plural key: validate each translated quantity form against the matching
+      // base form (falling back to "other" if the base doesn't define that form).
+      // We do NOT require the same number of forms on both sides — languages
+      // legitimately need different plural categories.
+      if (!trRaw || !this.isPluralValue(trRaw) || !trRaw.quantities.other) {
+        return { type: "missing", badge: "missing", class: "row-missing" };
+      }
+      for (const q of Object.keys(trRaw.quantities)) {
+        const trText = trRaw.quantities[q];
+        const baseText = baseData.quantities[q] !== undefined ? baseData.quantities[q] : baseData.quantities.other;
+        if (!this.validatePlaceholders(baseText, trText)) {
+          return { type: "placeholder-issue", badge: "placeholder issue", class: "row-placeholder-issue" };
+        }
+      }
+    } else {
+      const tr = typeof trRaw === "string" ? trRaw : "";
+      if (!tr) {
+        return { type: "missing", badge: "missing", class: "row-missing" };
+      }
+      if (!this.validatePlaceholders(baseData.text, tr)) {
+        return { type: "placeholder-issue", badge: "placeholder issue", class: "row-placeholder-issue" };
+      }
     }
 
     const stored = this.getStoredState(CONFIG.LANGUAGE);
     const previousBase = stored.basePerKey || {};
     const previousHash = previousBase[key] ? previousBase[key].hash : null;
-    const currentHash = this.base[key].hash;
+    const currentHash = baseData.hash;
 
     if (previousHash && previousHash !== currentHash) {
       return { type: "outdated", badge: "outdated", class: "row-outdated" };
@@ -380,8 +431,7 @@ const app = {
 
     this.filteredKeys.forEach((key, idx) => {
       const baseData = this.base[key];
-      const en = baseData.text;
-      const tr = this.translated[key] || "";
+      const trRaw = this.translated[key];
       const status = this.getStatus(key);
 
       const row = document.createElement("tr");
@@ -391,30 +441,67 @@ const app = {
       const stored = this.getStoredState(CONFIG.LANGUAGE);
       const previousBase = stored.basePerKey || {};
       const prevText = previousBase[key] ? previousBase[key].text : "";
-      const hasChanged = prevText && prevText !== en;
+      const hasChanged = prevText && prevText !== baseData.text;
 
-      row.innerHTML = `
-        <td class="key-cell">
-          ${this.escapeHTML(key)}
-          <span class="badge badge-${status.type}">${status.badge}</span>
-          ${hasChanged ? `<div class="outdated-diff">Changed</div>` : ""}
-        </td>
-        <td class="text-cell">
-          ${this.escapeHTML(en)}
-          ${hasChanged ? `<div class="outdated-diff">Was: ${this.escapeHTML(prevText)}</div>` : ""}
-        </td>
-        <td class="translation-cell">
-          <input 
-            type="text" 
-            data-key="${key}"
-            data-idx="${idx}"
-            value="${this.escapeHTML(tr)}"
-            onchange="app.onChange(this)"
-            oninput="app.onInput(this)"
-            onkeydown="app.onKeydown(event, '${key}')"
-            onfocus="app.editingKey = '${key}'">
-        </td>
+      const keyCellHTML = `
+        ${this.escapeHTML(key)}
+        <span class="badge badge-${status.type}">${status.badge}</span>
+        ${hasChanged ? `<div class="outdated-diff">Changed</div>` : ""}
       `;
+
+      if (baseData.quantities) {
+        // Plural key: one input per quantity form, so each form can be
+        // edited/validated independently instead of as one flattened blob.
+        const trQuantities = this.isPluralValue(trRaw) ? trRaw.quantities : {};
+        const allQuantities = this.PLURAL_ORDER.filter(q =>
+          baseData.quantities[q] !== undefined || trQuantities[q] !== undefined
+        );
+
+        row.innerHTML = `
+          <td class="key-cell">${keyCellHTML}</td>
+          <td class="text-cell">
+            ${allQuantities.map(q => `<div><code>${this.escapeHTML(q)}</code>: ${this.escapeHTML(baseData.quantities[q] !== undefined ? baseData.quantities[q] : baseData.quantities.other)}</div>`).join("")}
+            ${hasChanged ? `<div class="outdated-diff">Was: ${this.escapeHTML(prevText)}</div>` : ""}
+          </td>
+          <td class="translation-cell">
+            ${allQuantities.map(q => `
+              <div style="margin-bottom:4px;">
+                <label style="font-size:11px; opacity:.7;">${this.escapeHTML(q)}</label>
+                <input
+                  type="text"
+                  data-key="${key}"
+                  data-quantity="${q}"
+                  data-idx="${idx}"
+                  value="${this.escapeHTML(trQuantities[q] || "")}"
+                  onchange="app.onChange(this)"
+                  oninput="app.onInput(this)"
+                  onkeydown="app.onKeydown(event, this)"
+                  onfocus="app.editingKey = '${key}'">
+              </div>
+            `).join("")}
+          </td>
+        `;
+      } else {
+        const tr = typeof trRaw === "string" ? trRaw : "";
+        row.innerHTML = `
+          <td class="key-cell">${keyCellHTML}</td>
+          <td class="text-cell">
+            ${this.escapeHTML(baseData.text)}
+            ${hasChanged ? `<div class="outdated-diff">Was: ${this.escapeHTML(prevText)}</div>` : ""}
+          </td>
+          <td class="translation-cell">
+            <input 
+              type="text" 
+              data-key="${key}"
+              data-idx="${idx}"
+              value="${this.escapeHTML(tr)}"
+              onchange="app.onChange(this)"
+              oninput="app.onInput(this)"
+              onkeydown="app.onKeydown(event, this)"
+              onfocus="app.editingKey = '${key}'">
+          </td>
+        `;
+      }
 
       tbody.appendChild(row);
     });
@@ -422,15 +509,27 @@ const app = {
     this.updateStats();
   },
 
-  onInput(el) {
+  setTranslatedValue(el) {
     const key = el.getAttribute("data-key");
-    this.translated[key] = el.value;
+    const quantity = el.getAttribute("data-quantity");
+    if (quantity) {
+      if (!this.isPluralValue(this.translated[key])) {
+        this.translated[key] = { quantities: {} };
+      }
+      this.translated[key].quantities[quantity] = el.value;
+    } else {
+      this.translated[key] = el.value;
+    }
+    return key;
+  },
+
+  onInput(el) {
+    this.setTranslatedValue(el);
     this.debouncedSave();
   },
 
   onChange(el) {
-    const key = el.getAttribute("data-key");
-    this.translated[key] = el.value;
+    const key = this.setTranslatedValue(el);
     this.saveState(CONFIG.LANGUAGE);
     const row = document.getElementById(`row-${key}`);
     const status = this.getStatus(key);
@@ -444,9 +543,12 @@ const app = {
     }, CONFIG.DEBOUNCE_SAVE);
   },
 
-  onKeydown(event, key) {
+  onKeydown(event, el) {
+    // Identify the input by DOM element, not by key — a plural key now has
+    // multiple inputs (one per quantity form), so looking up "the input with
+    // this key" would always land on the first form and break navigation.
     const inputs = Array.from(document.querySelectorAll(".translation-cell input"));
-    const currentIdx = inputs.findIndex(el => el.getAttribute("data-key") === key);
+    const currentIdx = inputs.indexOf(el);
 
     if (event.key === "Enter") {
       event.preventDefault();
@@ -501,6 +603,76 @@ const app = {
     return str.replace(/[&<>"']/g, m => map[m]);
   },
 
+  escapeXMLText(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/'/g, "\\'")
+      .replace(/"/g, "&quot;");
+  },
+
+  escapeXMLAttr(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  },
+
+  buildXML() {
+    const lines = ['<?xml version="1.0" encoding="utf-8"?>', "<resources>"];
+
+    Object.keys(this.base).forEach(key => {
+      const trRaw = this.translated[key];
+      const type = (this.types && this.types[key]) || "string";
+
+      if (type === "plural") {
+        const trQuantities = this.isPluralValue(trRaw) ? trRaw.quantities : {};
+        const quantitiesToWrite = this.PLURAL_ORDER.filter(q => trQuantities[q]);
+        if (quantitiesToWrite.length === 0) return; // skip untranslated
+        lines.push(`    <plurals name="${this.escapeXMLAttr(key)}">`);
+        quantitiesToWrite.forEach(q => {
+          lines.push(`        <item quantity="${q}">${this.escapeXMLText(trQuantities[q])}</item>`);
+        });
+        lines.push("    </plurals>");
+      } else if (type === "array") {
+        const trText = typeof trRaw === "string" ? trRaw : "";
+        if (!trText) return;
+        lines.push(`    <string-array name="${this.escapeXMLAttr(key)}">`);
+        trText.split(" | ").forEach(item => {
+          lines.push(`        <item>${this.escapeXMLText(item)}</item>`);
+        });
+        lines.push("    </string-array>");
+      } else {
+        const trText = typeof trRaw === "string" ? trRaw : "";
+        if (!trText) return;
+        lines.push(`    <string name="${this.escapeXMLAttr(key)}">${this.escapeXMLText(trText)}</string>`);
+      }
+    });
+
+    lines.push("</resources>");
+    return lines.join("\n");
+  },
+
+  exportXML() {
+    if (!this.loaded) {
+      alert("Load the strings first before exporting.");
+      return;
+    }
+    const xml = this.buildXML();
+    const blob = new Blob([xml], { type: "application/xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const langSuffix = CONFIG.LANGUAGE ? `-${CONFIG.LANGUAGE}` : "";
+    a.href = url;
+    a.download = `strings${langSuffix}.xml`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+
   setStatus(msg) {
     document.getElementById("statusMsg").textContent = msg;
   },
@@ -511,6 +683,8 @@ const app = {
 
   unlock() {
     document.getElementById("loadBtn").disabled = false;
+    const exportBtn = document.getElementById("exportBtn");
+    if (exportBtn) exportBtn.disabled = !this.loaded;
   },
 };
 
