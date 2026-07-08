@@ -8,7 +8,6 @@ const CONFIG = {
   SOURCE_URL: urlParams.get('source'),
   TARGET_URL: urlParams.get('target'),
   LANGUAGE: urlParams.get('lang') || 'fr',
-  EMAIL: urlParams.get('email'),
   STORAGE_PREFIX: "translator_",
   DEBOUNCE_SAVE: 1000,
   CORS_PROXIES: [
@@ -25,9 +24,6 @@ function validateConfig() {
   }
   if (!CONFIG.LANGUAGE) {
     errors.push("Missing required parameter: lang (language code)");
-  }
-  if (!CONFIG.EMAIL) {
-    errors.push("Missing required parameter: email (destination email)");
   }
 
   if (CONFIG.SOURCE_URL) {
@@ -54,7 +50,6 @@ function showConfigInfo() {
   info.innerHTML = `
     <strong>Configuration:</strong> 
     Language: <code>${CONFIG.LANGUAGE}</code> | 
-    Email: <code>${CONFIG.EMAIL}</code> | 
     Source: <code>${CONFIG.SOURCE_URL.substring(0, 60)}...</code>
     ${CONFIG.TARGET_URL ? ` | Target: <code>${CONFIG.TARGET_URL.substring(0, 60)}...</code>` : ''}
   `;
@@ -63,7 +58,6 @@ function showConfigInfo() {
 
 function showError(message) {
   document.getElementById('loadBtn').disabled = true;
-  document.getElementById('emailBtn').disabled = true;
   document.getElementById('tbody').innerHTML = '';
   const errorState = document.getElementById('errorState');
   document.getElementById('errorMsg').textContent = message;
@@ -495,38 +489,6 @@ const app = {
     document.getElementById("statsOutdated").textContent = `Outdated: ${outdated}`;
   },
 
-  sendEmail() {
-    const lang = CONFIG.LANGUAGE;
-    const keys = Object.keys(this.base);
-    let missing = 0, outdated = 0, completed = 0;
-
-    keys.forEach(key => {
-      const status = this.getStatus(key);
-      if (status.type === "missing") missing++;
-      else if (status.type === "outdated") outdated++;
-      else if (status.type === "ok") completed++;
-    });
-
-    const payload = {
-      language: lang,
-      stats: {
-        total: keys.length,
-        missing,
-        outdated,
-        completed,
-      },
-      translations: this.translated,
-      timestamp: new Date().toISOString()
-    };
-
-    const subject = encodeURIComponent(`Android Strings Translation - ${lang}`);
-    const body = encodeURIComponent(JSON.stringify(payload, null, 2));
-
-    window.location.href = `mailto:${CONFIG.EMAIL}?subject=${subject}&body=${body}`;
-
-    this.setStatus("Opening email client...");
-  },
-
   escapeHTML(str) {
     const map = {
       "&": "&amp;",
@@ -544,14 +506,10 @@ const app = {
 
   lock() {
     document.getElementById("loadBtn").disabled = true;
-    document.getElementById("emailBtn").disabled = true;
   },
 
   unlock() {
     document.getElementById("loadBtn").disabled = false;
-    if (this.loaded) {
-      document.getElementById("emailBtn").disabled = false;
-    }
   },
 };
 

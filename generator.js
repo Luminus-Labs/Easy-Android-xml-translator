@@ -73,7 +73,7 @@ function showSuccess() {
   document.getElementById('successMessage').classList.add('show');
 }
 
-function generateTranslatorUrl(sourceUrl, langCode, email) {
+function generateTranslatorUrl(sourceUrl, langCode) {
   const baseUrl = window.location.origin + window.location.pathname.replace('generator.html', 'index.html');
   const targetUrl = guessTargetUrl(sourceUrl, langCode);
 
@@ -82,10 +82,6 @@ function generateTranslatorUrl(sourceUrl, langCode, email) {
     target: targetUrl,
     lang: langCode,
   });
-
-  if (email) {
-    params.append('email', email);
-  }
 
   return `${baseUrl}?${params.toString()}`;
 }
@@ -113,7 +109,6 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
   e.preventDefault();
 
   let sourceUrl = document.getElementById('sourceUrl').value.trim();
-  const email = document.getElementById('email').value.trim();
 
   if (!sourceUrl) {
     showError('Please enter a source URL');
@@ -137,13 +132,8 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
     return;
   }
 
-  if (email && !email.includes('@')) {
-    showError('Please enter a valid email address');
-    return;
-  }
-
   try {
-    const translatorUrl = generateTranslatorUrl(sourceUrl, selectedLanguage.code, email);
+    const translatorUrl = generateTranslatorUrl(sourceUrl, selectedLanguage.code);
 
     document.getElementById('generatedUrl').textContent = translatorUrl;
     document.getElementById('outputSection').classList.add('show');
