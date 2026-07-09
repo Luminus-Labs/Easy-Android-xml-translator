@@ -25,7 +25,8 @@ function setActiveMode(mode, updateHistory = true) {
 
   const panels = document.querySelectorAll(".mode-panel");
   panels.forEach(panel => {
-    panel.hidden = panel.id !== `mode-${mode}`;
+    // FIXED: Instead of panel.hidden, we now toggle Tailwind's 'hidden' class
+    panel.classList.toggle("hidden", panel.id !== `mode-${mode}`);
   });
 
   document.querySelectorAll("[data-mode-link]").forEach(link => {

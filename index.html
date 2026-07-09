@@ -1,95 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Easy Android XML Translator</title>
+<script src="tailwind.js"></script>
+<script>
+  tailwind.config = {
+    darkMode: ['class', '[data-theme="dark"]'],
+    theme: {
+      extend: {
+        colors: {
+          accent: 'var(--color-accent)',
+          'accent-light': 'var(--color-accent-light)',
+          surface: 'var(--color-surface)',
+          surface2: 'var(--color-surface-2)',
+          surface3: 'var(--color-surface-3)',
+          border: 'var(--color-border)',
+          'border-light': 'var(--color-border-light)',
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          success: 'var(--color-success)',
+          error: 'var(--color-error)',
+          warning: 'var(--color-warning)',
+        },
+        fontFamily: {
+          sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+          mono: ['Monaco', '"Courier New"', 'monospace'],
+        }
+      }
+    }
+  }
+</script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
 </head>
 
-<body>
+<body class="bg-white dark:bg-black text-primary font-sans antialiased min-h-screen p-4 md:p-8 transition-colors duration-300">
 
-<div class="theme-toggle">
-  <button class="theme-toggle-btn"></button>
+<div class="fixed top-6 right-6 z-50">
+  <button class="theme-toggle-btn w-12 h-12 rounded-full border border-border bg-surface2 text-primary flex items-center justify-center text-xl transition-all duration-150 shadow-md hover:bg-surface3 hover:scale-105 active:scale-95"></button>
 </div>
 
-<div class="container">
-  <div class="navbar">
-    <h1><i class="fa-solid fa-language" aria-hidden="true"></i> Easy Android XML Translator</h1>
-    <div class="navbar-spacer"></div>
-    <a href="?mode=generator" data-mode-link="generator">Link Generator</a>
-    <a href="?mode=translator" data-mode-link="translator">XML Translator</a>
-    <a href="?mode=about" data-mode-link="about">About</a>
-  </div>
+<div class="max-w-[1400px] mx-auto bg-surface rounded-2xl shadow-xl p-6 md:p-8 transition-all duration-300">
+  
+  <nav class="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-4 mb-6 border-b border-border">
+    <h1 class="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2 m-0">
+      <i class="fa-solid fa-language text-accent" aria-hidden="true"></i> Easy Android XML Translator
+    </h1>
+    <div class="sm:flex-1"></div>
+    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+      <a href="?mode=generator" data-mode-link="generator" class="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-accent/10 data-[mode-link=generator]:bg-accent data-[mode-link=generator]:text-black">Link Generator</a>
+      <a href="?mode=translator" data-mode-link="translator" class="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-accent/10 data-[mode-link=translator]:bg-accent data-[mode-link=translator]:text-black">XML Translator</a>
+      <a href="?mode=about" data-mode-link="about" class="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-accent/10 data-[mode-link=about]:bg-accent data-[mode-link=about]:text-black">About</a>
+    </div>
+  </nav>
 
-  <section id="mode-generator" class="mode-panel">
-    <div class="generator-layout">
-      <div class="generator-main">
-        <div class="quick-help">
-          <h3><i class="fa-regular fa-circle-question" aria-hidden="true"></i> Link Generator</h3>
-          <p>Provide the base English strings.xml URL and target language. The tool automatically guesses the translated file location and generates a translator link.</p>
-        </div>
-
-        <form id="generatorForm">
-          <div class="form-group">
-            <label for="sourceUrl">Base Strings.xml URL *</label>
-            <input
-              type="text"
-              id="sourceUrl"
-              placeholder="https://raw.githubusercontent.com/user/repo/main/app/src/main/res/values/strings.xml"
-              required>
-            <p class="help-text">The raw GitHub URL to the English (base) strings.xml file. Normal GitHub links are automatically converted.</p>
+  <section id="mode-generator" class="mode-panel hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+      <div class="lg:col-span-3">
+        <form id="generatorForm" class="space-y-6">
+          <div class="space-y-2">
+            <label for="sourceUrl" class="block font-semibold text-sm">Base Strings.xml URL *</label>
+            <input type="text" id="sourceUrl" class="w-full px-4 py-3 border border-border rounded-lg text-sm bg-white dark:bg-black text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all" placeholder="https://raw.githubusercontent.com/user/repo/main/app/src/main/res/values/strings.xml" required>
+            <p class="text-xs text-secondary mt-1 leading-relaxed">The raw GitHub URL to the English (base) strings.xml file. Normal GitHub links are automatically converted.</p>
           </div>
 
-          <div class="form-group">
-            <label>Target Language *</label>
-            <div class="language-options" id="languageOptions"></div>
-            <p class="help-text" id="selectedLangHelp" style="display:none;">Selected: <strong id="selectedLangName"></strong></p>
+          <div class="space-y-2">
+            <label class="block font-semibold text-sm">Target Language *</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-3" id="languageOptions"></div>
+            <p class="text-xs text-secondary mt-2 hidden" id="selectedLangHelp">Selected: <strong id="selectedLangName" class="text-accent"></strong></p>
           </div>
 
-          <div class="button-group">
-            <button type="submit" class="btn-primary"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Generate URL</button>
-            <button type="reset" class="btn-secondary"><i class="fa-solid fa-eraser" aria-hidden="true"></i> Clear</button>
+          <div class="flex flex-col sm:flex-row gap-3 pt-4">
+            <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-accent hover:bg-accent-light text-black font-semibold rounded-lg shadow-md transition-all inline-flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Generate URL</button>
+            <button type="reset" class="w-full sm:w-auto px-6 py-2.5 bg-surface3 border border-border hover:bg-surface2 text-primary font-semibold rounded-lg transition-all inline-flex items-center justify-center gap-2"><i class="fa-solid fa-eraser" aria-hidden="true"></i> Clear</button>
           </div>
         </form>
 
-        <div class="error-message" id="errorMessage"></div>
-        <div class="success-message" id="successMessage"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> URL generated successfully!</div>
+        <div class="rounded-lg p-3 text-sm border-left-4 hidden mt-4 bg-error/10 text-error border-error" id="errorMessage"></div>
+        <div class="rounded-lg p-3 text-sm border-left-4 hidden mt-4 bg-success/10 text-success border-success" id="successMessage"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> URL generated successfully!</div>
 
-        <div class="output-section" id="outputSection">
-          <h2><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Generated URL</h2>
-
-          <div class="url-preview" id="urlPreview">
-            <strong>Translator Link:</strong>
-            <code id="generatedUrl"></code>
+        <div class="mt-8 pt-6 border-t border-border hidden" id="outputSection">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-file-lines text-accent" aria-hidden="true"></i> Generated URL</h2>
+          <div class="bg-accent/5 border border-accent rounded-xl p-4 text-xs md:text-sm">
+            <strong class="block text-accent mb-2">Translator Link:</strong>
+            <code id="generatedUrl" class="block bg-white dark:bg-black p-3 rounded-md font-mono break-all max-h-[150px] overflow-y-auto border border-border"></code>
           </div>
-
-          <div style="margin-top: 16px;">
-            <button type="button" class="btn-primary" onclick="copyToClipboard(event)"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy URL</button>
-            <button type="button" class="btn-secondary" onclick="openTranslator()"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open Translator</button>
+          <div class="flex flex-col sm:flex-row gap-3 mt-4">
+            <button type="button" class="w-full sm:w-auto px-5 py-2 bg-accent hover:bg-accent-light text-black font-semibold rounded-lg shadow-md transition-all inline-flex items-center justify-center gap-2" onclick="copyToClipboard(event)"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy URL</button>
+            <button type="button" class="w-full sm:w-auto px-5 py-2 bg-surface3 border border-border hover:bg-surface2 text-primary font-semibold rounded-lg transition-all inline-flex items-center justify-center gap-2" onclick="openTranslator()"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open Translator</button>
           </div>
-
-          <div style="margin-top: 20px; padding: 16px; background: var(--color-surface-2); border-radius: var(--radius-lg); font-size: 12px; color: var(--color-text-secondary);">
-            <strong>Share this URL with translators:</strong>
-            <p style="margin: 8px 0 0 0; line-height: 1.6;">
-              - They can paste it in their browser<br>
-              - Load the strings to start translating<br>
-              - It works for any repository!
-            </p>
+          <div class="mt-5 p-4 bg-surface2 border border-border rounded-xl text-xs text-secondary space-y-2">
+            <strong class="text-primary">Share this URL with translators:</strong>
+            <p class="m-0 leading-relaxed">- They can paste it in their browser</p>
+            <p class="m-0 leading-relaxed">- Load the strings to start translating</p>
+            <p class="m-0 leading-relaxed">- It works for any repository!</p>
           </div>
         </div>
       </div>
 
-      <aside class="generator-workflow">
-        <div class="quick-help">
-          <h3><i class="fa-regular fa-compass" aria-hidden="true"></i> Workflow</h3>
-          <p>The app works in two steps: first generate a translator link, then open that link to translate the XML in the browser. The link carries the source file, target file, and language so the translator mode knows what to load.</p>
+      <div class="lg:col-span-2 space-y-4">
+        <div class="bg-surface2 border border-border rounded-xl p-5 shadow-sm">
+          <h3 class="text-base font-semibold mb-2 flex items-center gap-2"><i class="fa-regular fa-compass text-accent" aria-hidden="true"></i> Workflow</h3>
+          <p class="text-secondary text-sm leading-relaxed m-0">The app works in two steps: first generate a translator link, then open that link to translate the XML in the browser. The link carries parameters so the translator mode knows what to load.</p>
+        </div>
+        
+        <div class="bg-surface2 border border-border rounded-xl p-5 shadow-sm">
+          <h3 class="text-base font-semibold mb-2 flex items-center gap-2"><i class="fa-solid fa-link text-accent" aria-hidden="true"></i> Link Generator Help</h3>
+          <p class="text-secondary text-sm leading-relaxed m-0">Provide the base English strings.xml URL and target language. The tool automatically guesses the translated file location and generates a translator link.</p>
         </div>
 
-        <div class="workflow-card">
-          <h3>How it flows</h3>
-          <ol>
+        <div class="bg-surface2 border border-border rounded-xl p-5 shadow-sm space-y-3">
+          <h3 class="text-base font-semibold m-0">How it flows</h3>
+          <ol class="m-0 pl-5 text-secondary text-sm space-y-2 list-decimal">
             <li>Paste the raw English strings.xml URL.</li>
             <li>Choose the target language.</li>
             <li>Generate the translator link.</li>
@@ -97,97 +121,94 @@
             <li>Edit translations directly and keep working from the same page.</li>
           </ol>
         </div>
-      </aside>
+      </div>
     </div>
   </section>
 
-  <section id="mode-translator" class="mode-panel">
-    <header>
-      <div class="controls">
-        <button id="loadBtn" onclick="app.load()" class="btn-primary">Load</button>
-        <button id="exportBtn" onclick="app.exportXML()" class="btn-secondary" disabled><i class="fa-solid fa-download" aria-hidden="true"></i> Export XML</button>
+  <section id="mode-translator" class="mode-panel hidden space-y-6">
+    <header class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between pb-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="loadBtn" onclick="app.load()" class="px-5 py-2 bg-accent hover:bg-accent-light text-black font-bold rounded-lg shadow-md transition-all text-sm">
+          Load Remote Link
+        </button>
+        
+        <label class="px-4 py-2 bg-surface3 border border-border hover:bg-surface2 text-primary font-semibold rounded-lg transition-all text-sm cursor-pointer inline-flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-file-import text-accent"></i> Upload Local XML
+          <input type="file" id="localXmlInput" accept=".xml" class="hidden" onchange="app.handleLocalUpload(event)">
+        </label>
+
+        <button id="exportBtn" onclick="app.exportXML()" class="px-4 py-2 bg-surface3 border border-border hover:bg-surface2 text-primary font-semibold rounded-lg transition-all text-sm inline-flex items-center gap-2" disabled>
+          <i class="fa-solid fa-download" aria-hidden="true"></i> Export XML
+        </button>
+      </div>
+
+      <div class="w-full sm:w-72">
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-secondary">
+            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+          </span>
+          <input type="text" id="search" placeholder="Quick filter by key..." class="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm bg-white dark:bg-black text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all" onkeyup="app.onSearch(event)">
+        </div>
       </div>
     </header>
 
-    <div class="quick-help">
-      <h3><i class="fa-regular fa-circle-question" aria-hidden="true"></i> XML Translator</h3>
-      <p>Open this mode through a generated translator link. It loads the source and target XML from the URL parameters and lets you edit translations directly in the browser.</p>
-    </div>
+    <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between pt-2 border-t border-border/60">
+      <div class="flex flex-wrap gap-1.5">
+        <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-accent text-primary data-[active=true]:bg-accent data-[active=true]:text-black" data-active="true" onclick="app.setFilter('all', this)">All Strings</button>
+        <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-border text-secondary" onclick="app.setFilter('missing', this)">Missing</button>
+        <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-border text-secondary" onclick="app.setFilter('outdated', this)">Outdated</button>
+        <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-border text-secondary" onclick="app.setFilter('needs-work', this)">Needs Work</button>
+      </div>
 
-    <div class="legend">
-      <div class="legend-item">
-        <div class="legend-color" style="background: rgba(40, 167, 69, 0.15);"></div>
-        <span>Translated</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color" style="background: rgba(215, 58, 73, 0.15);"></div>
-        <span>Missing</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color" style="background: rgba(255, 193, 59, 0.15);"></div>
-        <span>Outdated</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color" style="background: rgba(255, 107, 107, 0.15);"></div>
-        <span>Placeholder Issue</span>
+      <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-secondary w-full sm:w-auto sm:justify-end">
+        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-success/40"></div><span id="statsTotal">Total: 0</span></div>
+        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-error/40"></div><span id="statsMissing">Missing: 0</span></div>
+        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-warning/40"></div><span id="statsOutdated">Outdated: 0</span></div>
+        <span id="statusMsg" class="text-accent font-semibold ml-auto sm:ml-2 bg-accent/5 px-2 py-0.5 rounded border border-accent/20">Idle</span>
       </div>
     </div>
 
-    <div class="filter-section">
-      <div class="filter-buttons">
-        <button class="filter-btn active" onclick="app.setFilter('all')">All Strings</button>
-        <button class="filter-btn" onclick="app.setFilter('missing')">Missing</button>
-        <button class="filter-btn" onclick="app.setFilter('outdated')">Outdated</button>
-        <button class="filter-btn" onclick="app.setFilter('needs-work')">Needs Work</button>
-      </div>
-      <div class="search-box">
-        <input type="text" id="search" placeholder="Search by key..." onkeyup="app.onSearch(event)">
-      </div>
-    </div>
+    <div class="text-xs text-secondary bg-surface2 p-3 border-l-4 border-accent rounded-r-lg hidden" id="configInfo"></div>
 
-    <div class="stats">
-      <span id="statsTotal">Total: 0</span>
-      <span id="statsMissing">Missing: 0</span>
-      <span id="statsOutdated">Outdated: 0</span>
-      <span id="statusMsg" class="status">Idle</span>
-    </div>
-
-    <div class="config-info" id="configInfo"></div>
-
-    <div class="table-wrapper">
-      <table>
-        <thead>
+    <div class="overflow-x-auto border border-border rounded-xl shadow-sm bg-white dark:bg-black">
+      <table class="w-full border-collapse text-sm text-left">
+        <thead class="bg-surface2 sticky top-0 z-10 font-bold text-primary border-b border-border">
           <tr>
-            <th style="width: 180px;">Key</th>
-            <th style="width: 1fr; min-width: 300px;">English</th>
-            <th style="width: 1fr; min-width: 300px;">Translation</th>
+            <th class="p-4 w-[240px]">Resource String Key</th>
+            <th class="p-4 min-w-[320px]">Base Language (English)</th>
+            <th class="p-4 min-w-[340px]">Translation Workfield</th>
           </tr>
         </thead>
-        <tbody id="tbody"></tbody>
+        <tbody id="tbody" class="divide-y divide-border/40"></tbody>
       </table>
     </div>
 
-    <div id="emptyState" class="empty-state" style="display:none;">
-      <h3>No strings found</h3>
-      <p>Load a strings.xml file to get started</p>
+    <div id="emptyState" class="text-center py-16 px-4 text-secondary bg-surface2/40 rounded-xl border border-dashed border-border transition-all duration-150">
+      <div id="emptyStateLoadingContent" class="hidden space-y-3">
+        <i class="fa-solid fa-circle-notch fa-spin text-2xl text-accent"></i>
+        <h3 id="emptyStateLoadingText" class="text-sm font-bold text-primary">Processing layout entities...</h3>
+      </div>
+      <div id="emptyStateStaticContent" class="space-y-1">
+        <h3 class="text-base font-bold text-primary">No localized segments displayed</h3>
+        <p class="text-xs m-0 text-secondary">Click load remote configs or select a file resource locally from storage to translate strings.</p>
+      </div>
     </div>
 
-    <div id="errorState" class="error-state" style="display:none;">
-      <h3>Configuration Error</h3>
-      <p id="errorMsg"></p>
+    <div id="errorState" class="text-center py-12 px-4 text-error hidden">
+      <h3 class="text-lg font-bold mb-2">Configuration Framework Exception</h3>
+      <p id="errorMsg" class="text-sm font-mono max-w-[600px] mx-auto p-3 bg-error/10 rounded-lg border border-border"></p>
     </div>
   </section>
 
-  <section id="mode-about" class="mode-panel">
-    <div class="quick-help">
-      <h3><i class="fa-regular fa-circle-info" aria-hidden="true"></i> About</h3>
-      <p>Lightweight and free web tool to let human contributors translate Android strings.xml files for you. You will get the translated xml file via email or github issues. No account or configuration required, just a link containing all the info.</p>
+  <section id="mode-about" class="mode-panel hidden">
+    <div class="bg-surface2 border border-border rounded-xl p-5 shadow-sm mb-6">
+      <h3 class="text-base font-semibold mb-2 flex items-center gap-2"><i class="fa-solid fa-circle-info text-accent" aria-hidden="true"></i> About</h3>
+      <p class="text-secondary text-sm leading-relaxed m-0">Lightweight and free web tool to let human contributors translate Android strings.xml files for you. No account required, just a single processing pipeline parameters link configuration footprint package.</p>
     </div>
-
-    <div class="about-copy">
-      <h2>REPOSITORY_UPSTREAM</h2>
-      <p>Review schematics, deploy manual local patches, and report infrastructure issues directly over the main codebase registry branch.</p>
-      <p><a href="https://github.com/Luminus-Labs/Easy-Android-xml-translator" target="_blank" rel="noreferrer noopener"><strong>ACCESS_GITHUB_REPOSITORY</strong></a></p>
+    <div class="bg-surface2 border border-border rounded-xl p-6 shadow-sm">
+      <h2 class="text-lg font-bold mb-3">REPOSITORY_UPSTREAM</h2>
+      <p class="text-secondary leading-relaxed mb-4">Review schematics, deploy manual local patches, and report infrastructure issues directly over the main codebase registry branch.</p>
+      <p class="m-0"><a href="https://github.com/Luminus-Labs/Easy-Android-xml-translator" target="_blank" rel="noreferrer noopener" class="text-accent no-underline font-semibold hover:underline flex items-center gap-1.5"><i class="fa-brands fa-github"></i> ACCESS_GITHUB_REPOSITORY</a></p>
     </div>
   </section>
 </div>

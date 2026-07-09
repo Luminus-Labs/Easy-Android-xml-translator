@@ -27,7 +27,8 @@ function initLanguageOptions() {
 
   LANGUAGES.forEach(lang => {
     const btn = document.createElement('div');
-    btn.className = 'lang-option';
+    // Applied Tailwind styling directly to dynamic DOM creation blocks
+    btn.className = 'lang-option p-2.5 border border-border rounded-lg bg-white dark:bg-black text-primary cursor-pointer text-center text-sm font-medium transition-all duration-150 hover:border-accent hover:bg-accent/5';
     btn.textContent = lang.code.toUpperCase();
     btn.dataset.code = lang.code;
     btn.dataset.name = lang.name;
@@ -37,15 +38,13 @@ function initLanguageOptions() {
 }
 
 function selectLanguage(code, name, element) {
-  document.querySelectorAll('.lang-option').forEach(opt => {
-  if (generatorInitialized) {
-    return;
-  }
-
-  generatorInitialized = true;
-    opt.classList.remove('selected');
+  document.querySelectorAll('#languageOptions .lang-option').forEach(opt => {
+    opt.classList.remove('bg-accent', 'text-black', 'border-accent');
+    opt.classList.add('bg-white', 'dark:bg-black', 'text-primary', 'border-border');
   });
-  element.classList.add('selected');
+  element.classList.remove('bg-white', 'dark:bg-black', 'text-primary', 'border-border');
+  element.classList.add('bg-accent', 'text-black', 'border-accent');
+  
   selectedLanguage = { code, name };
   document.getElementById('selectedLangHelp').style.display = 'block';
   document.getElementById('selectedLangName').textContent = name;
@@ -74,13 +73,17 @@ function validateUrl(urlString) {
 function showError(message) {
   const errorEl = document.getElementById('errorMessage');
   errorEl.textContent = message;
-  errorEl.classList.add('show');
-  document.getElementById('successMessage').classList.remove('show');
+  errorEl.classList.remove('hidden');
+  errorEl.classList.add('block');
+  document.getElementById('successMessage').classList.remove('block');
+  document.getElementById('successMessage').classList.add('hidden');
 }
 
 function showSuccess() {
-  document.getElementById('errorMessage').classList.remove('show');
-  document.getElementById('successMessage').classList.add('show');
+  document.getElementById('errorMessage').classList.remove('block');
+  document.getElementById('errorMessage').classList.add('hidden');
+  document.getElementById('successMessage').classList.remove('hidden');
+  document.getElementById('successMessage').classList.add('block');
 }
 
 function generateTranslatorUrl(sourceUrl, langCode) {
@@ -100,8 +103,6 @@ function generateTranslatorUrl(sourceUrl, langCode) {
 function legacyCopyToClipboard(text) {
   const textarea = document.createElement('textarea');
   textarea.value = text;
-  // Keep it in the viewport but invisible — off-screen elements are
-  // ignored by execCommand('copy') in some browsers.
   textarea.style.position = 'fixed';
   textarea.style.top = '0';
   textarea.style.left = '0';
@@ -131,9 +132,6 @@ function legacyCopyToClipboard(text) {
 }
 
 function copyTextToClipboard(text) {
-  // navigator.clipboard requires a secure context (HTTPS) and can reject
-  // for other reasons too (iframe without clipboard-write permission,
-  // unfocused document), so fall back to the legacy approach on failure.
   if (navigator.clipboard && navigator.clipboard.writeText) {
     return navigator.clipboard.writeText(text).catch(() => {
       if (!legacyCopyToClipboard(text)) {
@@ -148,16 +146,12 @@ function copyTextToClipboard(text) {
 
 function copyToClipboard(event) {
   const url = document.getElementById('generatedUrl').textContent;
-  // Grab this now — event.currentTarget is reset to null once the event
-  // finishes dispatching, and our copy call is async, so reading it inside
-  // .then() would be too late and throw (making a successful copy look
-  // like a failure).
   const btn = event.currentTarget;
   copyTextToClipboard(url).then(() => {
-    const originalText = btn.textContent;
-    btn.textContent = 'Copied!';
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
     setTimeout(() => {
-      btn.textContent = originalText;
+      btn.innerHTML = originalText;
     }, 2000);
   }).catch(() => {
     alert('Failed to copy. Please copy manually.');
@@ -200,7 +194,8 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
     const translatorUrl = generateTranslatorUrl(sourceUrl, selectedLanguage.code);
 
     document.getElementById('generatedUrl').textContent = translatorUrl;
-    document.getElementById('outputSection').classList.add('show');
+    document.getElementById('outputSection').classList.remove('hidden');
+    document.getElementById('outputSection').classList.add('block');
     showSuccess();
   } catch (err) {
     showError('Error generating URL: ' + err.message);
@@ -208,6 +203,8 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
 });
 
 function initGeneratorPage() {
+  if (generatorInitialized) return;
+  generatorInitialized = true;
   initLanguageOptions();
 }
 

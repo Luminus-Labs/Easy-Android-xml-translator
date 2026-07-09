@@ -4,7 +4,7 @@
 
 const urlParams = new URLSearchParams(window.location.search);
 
-const CONFIG = {
+let CONFIG = {
   SOURCE_URL: urlParams.get('source'),
   TARGET_URL: urlParams.get('target'),
   LANGUAGE: urlParams.get('lang') || 'fr',
@@ -20,42 +20,32 @@ let translatorInitialized = false;
 
 function validateConfig() {
   const errors = [];
-
-  if (!CONFIG.SOURCE_URL) {
-    errors.push("Missing required parameter: source (raw URL to strings.xml)");
-  }
+  if (!CONFIG.SOURCE_URL) return [];
   if (!CONFIG.LANGUAGE) {
     errors.push("Missing required parameter: lang (language code)");
   }
-
   if (CONFIG.SOURCE_URL) {
-    try {
-      new URL(CONFIG.SOURCE_URL);
-    } catch {
-      errors.push("Invalid source URL format");
-    }
+    try { new URL(CONFIG.SOURCE_URL); } catch { errors.push("Invalid source URL format"); }
   }
-
   if (CONFIG.TARGET_URL) {
-    try {
-      new URL(CONFIG.TARGET_URL);
-    } catch {
-      errors.push("Invalid target URL format");
-    }
+    try { new URL(CONFIG.TARGET_URL); } catch { errors.push("Invalid target URL format"); }
   }
-
   return errors;
 }
 
 function showConfigInfo() {
   const info = document.getElementById('configInfo');
+  if (!CONFIG.SOURCE_URL) {
+    info.classList.add('hidden');
+    return;
+  }
   info.innerHTML = `
     <strong>Configuration:</strong> 
     Language: <code>${CONFIG.LANGUAGE}</code> | 
     Source: <code>${CONFIG.SOURCE_URL.substring(0, 60)}...</code>
     ${CONFIG.TARGET_URL ? ` | Target: <code>${CONFIG.TARGET_URL.substring(0, 60)}...</code>` : ''}
   `;
-  info.classList.add('show');
+  info.classList.remove('hidden');
 }
 
 function showError(message) {
@@ -63,7 +53,7 @@ function showError(message) {
   document.getElementById('tbody').innerHTML = '';
   const errorState = document.getElementById('errorState');
   document.getElementById('errorMsg').textContent = message;
-  errorState.style.display = 'block';
+  errorState.classList.remove('hidden');
 }
 
 /* =========================
@@ -79,6 +69,11 @@ const app = {
   editingKey: null,
   saveTimeout: null,
   loaded: false,
+  
+  // Performance optimizations
+  statusCache: {},      // Caches computed row statuses
+  renderChunkSize: 40,   // Number of elements to render per frame burst
+  renderTimeout: null,  // Tracks asynchronous chunk execution frames
 
   init() {
     const errors = validateConfig();
@@ -87,50 +82,96 @@ const app = {
       return;
     }
 
-    showConfigInfo();
-    this.load();
+    if (CONFIG.SOURCE_URL) {
+      showConfigInfo();
+      this.load();
+    } else {
+      this.applyFilters();
+    }
   },
-  parseXML(text) {
-    console.log("=== parseXML called ===");
-    console.log("Input text length:", text.length);
 
+  handleLocalUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const codeResponse = prompt("Please enter the target language configuration code for this file (e.g. fr, es, pt, ru):", CONFIG.LANGUAGE || "fr");
+    const chosenLang = codeResponse ? codeResponse.trim().toLowerCase() : null;
+    
+    if (!chosenLang) {
+      alert("Language assignment aborted. Upload canceled.");
+      event.target.value = "";
+      return;
+    }
+
+    CONFIG.LANGUAGE = chosenLang;
+
+    this.setStatus("Reading local file contents...");
+    this.showCentralLoading("Reading local file elements...");
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const { map: parsed, types } = this.parseXML(text);
+        this.types = types;
+
+        this.base = {};
+        Object.keys(parsed).forEach(key => {
+          const raw = parsed[key];
+          if (this.isPluralValue(raw)) {
+            const flatText = this.formatPluralDisplay(raw.quantities);
+            this.base[key] = { text: flatText, hash: this.hashString(flatText), quantities: raw.quantities };
+          } else {
+            const text = raw;
+            const hash = this.hashString(text);
+            this.base[key] = { text, hash };
+          }
+        });
+
+        const stored = this.getStoredState(CONFIG.LANGUAGE);
+        this.translated = stored.translations || {}; 
+
+        // Invalidate state cache prior to triggering refilter logic
+        this.statusCache = {};
+        this.loaded = true;
+        this.applyFilters();
+        this.setStatus("Uploaded file processed successfully");
+        this.unlock();
+      } catch (err) {
+        alert("Error parsing uploaded XML: " + err.message);
+        this.setStatus("Upload exception error");
+        this.hideCentralLoading();
+      } finally {
+        event.target.value = "";
+      }
+    };
+    reader.readAsText(file);
+  },
+
+  parseXML(text) {
     const parser = new DOMParser();
     const xml = parser.parseFromString(text, "text/xml");
 
-    console.log("XML parsed. Root element:", xml.documentElement.nodeName);
-
     if (xml.documentElement.nodeName === "parsererror") {
-      console.error("XML parse error detected!");
-      throw new Error("Invalid XML format");
+      throw new Error("Invalid XML structural syntax format");
     }
 
     const map = {};
+    const types = {};
 
     const stringElements = xml.querySelectorAll("string");
-    console.log("Found string elements:", stringElements.length);
-
-    stringElements.forEach((node, idx) => {
+    stringElements.forEach(node => {
       const name = node.getAttribute("name");
       const text = node.textContent || "";
       if (name) {
         map[name] = text;
-        if (idx < 3) console.log(`  [${idx}] ${name}: "${text.substring(0, 50)}"`);
+        types[name] = "string";
       }
-    });
-
-    const types = {};
-    stringElements.forEach(node => {
-      const name = node.getAttribute("name");
-      if (name) types[name] = "string";
     });
 
     xml.querySelectorAll("plurals").forEach(node => {
       const name = node.getAttribute("name");
       if (name) {
-        // Keyed by quantity ("zero"/"one"/"two"/"few"/"many"/"other") instead of
-        // flattening by document order — different languages define different
-        // numbers of plural forms (e.g. English has 2, Russian/Portuguese have more),
-        // so positional joining silently misaligns them.
         const quantities = {};
         node.querySelectorAll("item").forEach(item => {
           const quantity = item.getAttribute("quantity") || "other";
@@ -153,8 +194,6 @@ const app = {
       }
     });
 
-    console.log("=== parseXML complete ===");
-    console.log("Total keys found:", Object.keys(map).length);
     return { map, types };
   },
 
@@ -182,53 +221,36 @@ const app = {
   },
 
   async fetchWithCORS(url) {
-    console.log("Attempting to fetch:", url);
-
     try {
-      const res = await fetch(url, {
-        headers: {
-          'Accept': 'text/plain, application/xml',
-        }
-      });
-      if (res.ok) {
-        console.log("Direct fetch succeeded");
-        return res;
-      }
-    } catch (e) {
-      console.log("Direct fetch failed:", e.message);
-    }
+      const res = await fetch(url, { headers: { 'Accept': 'text/plain, application/xml' } });
+      if (res.ok) return res;
+    } catch (e) {}
 
     for (const proxy of CONFIG.CORS_PROXIES) {
       try {
         const corsUrl = proxy + encodeURIComponent(url);
-        console.log("Trying CORS proxy:", proxy);
         const res = await fetch(corsUrl);
-        if (res.ok) {
-          console.log("CORS proxy succeeded:", proxy);
-          return res;
-        }
+        if (res.ok) return res;
       } catch (e) {
-        console.log("CORS proxy failed:", proxy, e.message);
         continue;
       }
     }
-
-    throw new Error(`Failed to fetch URL from all sources. The URL may not be accessible or may not support cross-origin requests. Please ensure the URL is a direct link to the raw XML file.`);
+    throw new Error(`Failed to fetch URL from all pipeline proxy sources.`);
   },
 
   async load() {
-    this.setStatus("Loading...");
+    if (!CONFIG.SOURCE_URL) {
+      alert("No remote parameters found in URL query parameters.");
+      return;
+    }
+    this.setStatus("Loading configurations...");
+    this.showCentralLoading("Loading remote XML configurations over proxy nodes...");
     this.lock();
 
     try {
       const lang = CONFIG.LANGUAGE;
-
-      console.log("========== LOAD START ==========");
-      console.log("Language:", lang);
       const res = await this.fetchWithCORS(CONFIG.SOURCE_URL);
-
       const baseText = await res.text();
-      console.log("Fetched base text length:", baseText.length);
 
       const { map: baseParsed, types: baseTypes } = this.parseXML(baseText);
       this.types = baseTypes;
@@ -248,22 +270,16 @@ const app = {
         }
       });
 
-      console.log("✅ Base loaded with", Object.keys(this.base).length, "keys");
-
       this.translated = {};
       if (CONFIG.TARGET_URL) {
         try {
-          console.log("Loading target/translation file...");
           const tRes = await this.fetchWithCORS(CONFIG.TARGET_URL);
           if (tRes.ok) {
             const translatedText = await tRes.text();
-            console.log("Fetched target text length:", translatedText.length);
             const { map: targetParsed } = this.parseXML(translatedText);
             this.translated = targetParsed;
-            console.log("✅ Target loaded with", Object.keys(this.translated).length, "keys");
           }
         } catch (e) {
-          console.log("❌ Failed to load target:", e.message);
           this.translated = stored.translations || {};
         }
       } else {
@@ -271,17 +287,14 @@ const app = {
       }
 
       this.saveState(lang);
+      this.statusCache = {}; // Invalidate performance metrics cache mapping object
       this.loaded = true;
-
-      console.log("About to call applyFilters. base keys:", Object.keys(this.base).length);
       this.applyFilters();
-
       this.setStatus("Loaded successfully");
-      console.log("========== LOAD COMPLETE ==========");
     } catch (err) {
       this.setStatus("Error: " + err.message);
       showError("Failed to load configuration: " + err.message);
-      console.error("❌ ERROR:", err);
+      this.hideCentralLoading();
     } finally {
       this.unlock();
     }
@@ -306,16 +319,16 @@ const app = {
     localStorage.setItem(key, JSON.stringify(state));
   },
 
-  setFilter(filterType) {
+  setFilter(filterType, btnElement) {
     this.filter = filterType;
-    document.querySelectorAll(".filter-btn").forEach((btn, idx) => {
-      btn.classList.toggle("active",
-        (idx === 0 && filterType === "all") ||
-        (idx === 1 && filterType === "missing") ||
-        (idx === 2 && filterType === "outdated") ||
-        (idx === 3 && filterType === "needs-work")
-      );
-    });
+    if (btnElement && btnElement.parentNode) {
+      btnElement.parentNode.querySelectorAll("button").forEach(btn => {
+        btn.removeAttribute("data-active");
+        btn.className = "px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-border text-secondary";
+      });
+      btnElement.setAttribute("data-active", "true");
+      btnElement.className = "px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-accent text-primary";
+    }
     this.applyFilters();
   },
 
@@ -325,12 +338,16 @@ const app = {
   },
 
   applyFilters() {
-    console.log("applyFilters called. base keys:", Object.keys(this.base).length);
+    // Drop any scheduled rendering pipeline blocks immediately to protect memory threads
+    if (this.renderTimeout) {
+      cancelAnimationFrame(this.renderTimeout);
+      this.renderTimeout = null;
+    }
+
     const keys = Object.keys(this.base);
 
     let filtered = keys.filter(key => {
       const status = this.getStatus(key);
-
       switch (this.filter) {
         case "missing":
           return status.type === "missing";
@@ -350,57 +367,71 @@ const app = {
       );
     }
 
+    // Performance Optimization: Cache priority values to avoid recalculation loops during lookups
+    const priorityMap = { 'missing': 0, 'placeholder-issue': 1, 'outdated': 2, 'ok': 3 };
     filtered.sort((a, b) => {
-      const statusA = this.getStatus(a);
-      const statusB = this.getStatus(b);
-      const priority = { missing: 0, "placeholder-issue": 1, outdated: 2, ok: 3 };
-      return (priority[statusA.type] || 3) - (priority[statusB.type] || 3);
+      const typeA = this.getStatus(a).type;
+      const typeB = this.getStatus(b).type;
+      return (priorityMap[typeA] ?? 3) - (priorityMap[typeB] ?? 3);
     });
 
     this.filteredKeys = filtered;
-    console.log("Filtered keys:", this.filteredKeys.length);
     this.render();
+    this.updateStats(); // Compute metrics decoupled from standard loop
   },
 
   getStatus(key) {
+    // Return instantly if configuration parameters have already been calculated
+    if (this.statusCache[key]) {
+      return this.statusCache[key];
+    }
+
     const baseData = this.base[key];
     const trRaw = this.translated[key];
+    let calculatedStatus;
 
     if (baseData.quantities) {
-      // Plural key: validate each translated quantity form against the matching
-      // base form (falling back to "other" if the base doesn't define that form).
-      // We do NOT require the same number of forms on both sides — languages
-      // legitimately need different plural categories.
       if (!trRaw || !this.isPluralValue(trRaw) || !trRaw.quantities.other) {
-        return { type: "missing", badge: "missing", class: "row-missing" };
-      }
-      for (const q of Object.keys(trRaw.quantities)) {
-        const trText = trRaw.quantities[q];
-        const baseText = baseData.quantities[q] !== undefined ? baseData.quantities[q] : baseData.quantities.other;
-        if (!this.validatePlaceholders(baseText, trText)) {
-          return { type: "placeholder-issue", badge: "placeholder issue", class: "row-placeholder-issue" };
+        calculatedStatus = { type: "missing", badge: "missing", class: "hover:bg-surface2/40 transition-colors" };
+      } else {
+        let errorFound = false;
+        for (const q of Object.keys(trRaw.quantities)) {
+          const trText = trRaw.quantities[q];
+          const baseText = baseData.quantities[q] !== undefined ? baseData.quantities[q] : baseData.quantities.other;
+          if (!this.validatePlaceholders(baseText, trText)) {
+            calculatedStatus = { type: "placeholder-issue", badge: "placeholder mismatch", class: "bg-error/5 hover:bg-error/10 transition-colors" };
+            errorFound = true;
+            break;
+          }
+        }
+        if (!errorFound) {
+          calculatedStatus = this.checkOutdatedState(key, baseData);
         }
       }
     } else {
       const tr = typeof trRaw === "string" ? trRaw : "";
       if (!tr) {
-        return { type: "missing", badge: "missing", class: "row-missing" };
-      }
-      if (!this.validatePlaceholders(baseData.text, tr)) {
-        return { type: "placeholder-issue", badge: "placeholder issue", class: "row-placeholder-issue" };
+        calculatedStatus = { type: "missing", badge: "missing", class: "bg-error/5 hover:bg-error/10 transition-colors" };
+      } else if (!this.validatePlaceholders(baseData.text, tr)) {
+        calculatedStatus = { type: "placeholder-issue", badge: "placeholder mismatch", class: "bg-error/5 hover:bg-error/10 transition-colors" };
+      } else {
+        calculatedStatus = this.checkOutdatedState(key, baseData);
       }
     }
 
+    this.statusCache[key] = calculatedStatus;
+    return calculatedStatus;
+  },
+
+  checkOutdatedState(key, baseData) {
     const stored = this.getStoredState(CONFIG.LANGUAGE);
     const previousBase = stored.basePerKey || {};
     const previousHash = previousBase[key] ? previousBase[key].hash : null;
-    const currentHash = baseData.hash;
-
-    if (previousHash && previousHash !== currentHash) {
-      return { type: "outdated", badge: "outdated", class: "row-outdated" };
+    
+    if (previousHash && previousHash !== baseData.hash) {
+      return { type: "outdated", badge: "outdated base", class: "bg-warning/5 hover:bg-warning/10 transition-colors" };
     }
-
-    return { type: "ok", badge: "✓", class: "row-ok" };
+    return { type: "ok", badge: "completed", class: "hover:bg-surface2/20 transition-colors" };
   },
 
   extractPlaceholders(str) {
@@ -414,99 +445,154 @@ const app = {
     return aStr === bStr;
   },
 
+  showCentralLoading(msg) {
+    const emptyState = document.getElementById("emptyState");
+    const staticContent = document.getElementById("emptyStateStaticContent");
+    const loadingContent = document.getElementById("emptyStateLoadingContent");
+    const loadingText = document.getElementById("emptyStateLoadingText");
+
+    if (emptyState && staticContent && loadingContent) {
+      staticContent.classList.add("hidden");
+      loadingContent.classList.remove("hidden");
+      if (loadingText) loadingText.textContent = msg;
+      emptyState.classList.remove("hidden");
+    }
+  },
+
+  hideCentralLoading() {
+    const emptyState = document.getElementById("emptyState");
+    const staticContent = document.getElementById("emptyStateStaticContent");
+    const loadingContent = document.getElementById("emptyStateLoadingContent");
+
+    if (emptyState && staticContent && loadingContent) {
+      loadingContent.classList.add("hidden");
+      staticContent.classList.remove("hidden");
+      if (this.filteredKeys.length > 0) {
+        emptyState.classList.add("hidden");
+      }
+    }
+  },
+
   render() {
-    console.log("render called. filteredKeys:", this.filteredKeys.length, "loaded:", this.loaded);
     const tbody = document.getElementById("tbody");
     const emptyState = document.getElementById("emptyState");
 
+    this.hideCentralLoading();
+
+    // Clear previous elements instantly
+    tbody.innerHTML = "";
+
     if (this.filteredKeys.length === 0) {
-      tbody.innerHTML = "";
-      emptyState.style.display = this.loaded ? "block" : "none";
-      console.log("No filtered keys, showing empty state");
+      emptyState.classList.remove("hidden");
       return;
     }
 
-    emptyState.style.display = "none";
-    tbody.innerHTML = "";
+    emptyState.classList.add("hidden");
 
-    this.filteredKeys.forEach((key, idx) => {
-      const baseData = this.base[key];
-      const trRaw = this.translated[key];
-      const status = this.getStatus(key);
+    // Initiate Non-blocking Asynchronous Chunked Stream Layout Processor
+    let currentIndex = 0;
+    const totalKeys = this.filteredKeys.length;
+    const stored = this.getStoredState(CONFIG.LANGUAGE);
+    const previousBase = stored.basePerKey || {};
 
-      const row = document.createElement("tr");
-      row.className = status.class;
-      row.id = `row-${key}`;
+    const renderNextChunk = () => {
+      // Create a fast memory-isolated fragment container
+      const fragment = document.createDocumentFragment();
+      const endLimit = Math.min(currentIndex + this.renderChunkSize, totalKeys);
 
-      const stored = this.getStoredState(CONFIG.LANGUAGE);
-      const previousBase = stored.basePerKey || {};
-      const prevText = previousBase[key] ? previousBase[key].text : "";
-      const hasChanged = prevText && prevText !== baseData.text;
+      for (let i = currentIndex; i < endLimit; i++) {
+        const key = this.filteredKeys[i];
+        const baseData = this.base[key];
+        const trRaw = this.translated[key];
+        const status = this.getStatus(key);
 
-      const keyCellHTML = `
-        ${this.escapeHTML(key)}
-        <span class="badge badge-${status.type}">${status.badge}</span>
-        ${hasChanged ? `<div class="outdated-diff">Changed</div>` : ""}
-      `;
+        const row = document.createElement("tr");
+        row.className = status.class;
+        row.id = `row-${key}`;
 
-      if (baseData.quantities) {
-        // Plural key: one input per quantity form, so each form can be
-        // edited/validated independently instead of as one flattened blob.
-        const trQuantities = this.isPluralValue(trRaw) ? trRaw.quantities : {};
-        const allQuantities = this.PLURAL_ORDER.filter(q =>
-          baseData.quantities[q] !== undefined || trQuantities[q] !== undefined
-        );
+        const prevText = previousBase[key] ? previousBase[key].text : "";
+        const hasChanged = prevText && prevText !== baseData.text;
 
-        row.innerHTML = `
-          <td class="key-cell">${keyCellHTML}</td>
-          <td class="text-cell">
-            ${allQuantities.map(q => `<div><code>${this.escapeHTML(q)}</code>: ${this.escapeHTML(baseData.quantities[q] !== undefined ? baseData.quantities[q] : baseData.quantities.other)}</div>`).join("")}
-            ${hasChanged ? `<div class="outdated-diff">Was: ${this.escapeHTML(prevText)}</div>` : ""}
-          </td>
-          <td class="translation-cell">
-            ${allQuantities.map(q => `
-              <div style="margin-bottom:4px;">
-                <label style="font-size:11px; opacity:.7;">${this.escapeHTML(q)}</label>
-                <input
-                  type="text"
-                  data-key="${key}"
-                  data-quantity="${q}"
-                  data-idx="${idx}"
-                  value="${this.escapeHTML(trQuantities[q] || "")}"
-                  onchange="app.onChange(this)"
-                  oninput="app.onInput(this)"
-                  onkeydown="app.onKeydown(event, this)"
-                  onfocus="app.editingKey = '${key}'">
-              </div>
-            `).join("")}
-          </td>
+        let badgeColorClass = 'bg-success/10 text-success border border-success/20';
+        if (status.type === 'missing') badgeColorClass = 'bg-error/10 text-error border border-error/20';
+        if (status.type === 'outdated' || status.type === 'placeholder-issue') badgeColorClass = 'bg-warning/10 text-warning border border-warning/20';
+
+        const keyCellHTML = `
+          <div class="font-mono text-xs break-all text-primary pr-2 font-semibold">
+            ${this.escapeHTML(key)}
+            <div class="mt-1.5"><span class="inline-block text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${badgeColorClass}">${status.badge}</span></div>
+            ${hasChanged ? `<div class="text-[11px] text-warning font-semibold mt-1"><i class="fa-solid fa-triangle-exclamation"></i> Content Changed</div>` : ""}
+          </div>
         `;
-      } else {
-        const tr = typeof trRaw === "string" ? trRaw : "";
-        row.innerHTML = `
-          <td class="key-cell">${keyCellHTML}</td>
-          <td class="text-cell">
-            ${this.escapeHTML(baseData.text)}
-            ${hasChanged ? `<div class="outdated-diff">Was: ${this.escapeHTML(prevText)}</div>` : ""}
-          </td>
-          <td class="translation-cell">
-            <input 
-              type="text" 
-              data-key="${key}"
-              data-idx="${idx}"
-              value="${this.escapeHTML(tr)}"
-              onchange="app.onChange(this)"
-              oninput="app.onInput(this)"
-              onkeydown="app.onKeydown(event, this)"
-              onfocus="app.editingKey = '${key}'">
-          </td>
-        `;
+
+        if (baseData.quantities) {
+          const trQuantities = this.isPluralValue(trRaw) ? trRaw.quantities : {};
+          const allQuantities = this.PLURAL_ORDER.filter(q =>
+            baseData.quantities[q] !== undefined || trQuantities[q] !== undefined
+          );
+
+          row.innerHTML = `
+            <td class="p-4 align-top">${keyCellHTML}</td>
+            <td class="p-4 align-top text-xs font-mono break-all whitespace-pre-wrap text-secondary leading-relaxed">
+              ${allQuantities.map(q => `<div class="mb-1.5 p-1 bg-surface2 rounded border border-border/30"><code class="text-accent font-bold">${this.escapeHTML(q)}</code>: ${this.escapeHTML(baseData.quantities[q] !== undefined ? baseData.quantities[q] : baseData.quantities.other)}</div>`).join("")}
+              ${hasChanged ? `<div class="text-xs text-warning mt-2 border-t border-border/30 pt-1">Previous: ${this.escapeHTML(prevText)}</div>` : ""}
+            </td>
+            <td class="p-4 align-top space-y-2.5">
+              ${allQuantities.map(q => `
+                <div class="flex items-center gap-2">
+                  <span class="w-12 text-xs font-bold text-secondary uppercase font-mono">${this.escapeHTML(q)}</span>
+                  <input
+                    type="text"
+                    data-key="${key}"
+                    data-quantity="${q}"
+                    data-idx="${i}"
+                    value="${this.escapeHTML(trQuantities[q] || "")}"
+                    onchange="app.onChange(this)"
+                    oninput="app.onInput(this)"
+                    onkeydown="app.onKeydown(event, this)"
+                    onfocus="app.editingKey = '${key}'"
+                    class="flex-1 p-2 border border-border rounded-lg text-sm bg-white dark:bg-black text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all shadow-sm">
+                </div>
+              `).join("")}
+            </td>
+          `;
+        } else {
+          const tr = typeof trRaw === "string" ? trRaw : "";
+          row.innerHTML = `
+            <td class="p-4 align-top">${keyCellHTML}</td>
+            <td class="p-4 align-top text-xs font-mono break-all whitespace-pre-wrap text-secondary leading-relaxed">
+              <div>${this.escapeHTML(baseData.text)}</div>
+              ${hasChanged ? `<div class="text-xs text-warning mt-2 border-t border-border/30 pt-1">Previous: ${this.escapeHTML(prevText)}</div>` : ""}
+            </td>
+            <td class="p-4 align-top">
+              <input 
+                type="text" 
+                data-key="${key}"
+                data-idx="${i}"
+                value="${this.escapeHTML(tr)}"
+                onchange="app.onChange(this)"
+                oninput="app.onInput(this)"
+                onkeydown="app.onKeydown(event, this)"
+                onfocus="app.editingKey = '${key}'"
+                class="w-full p-2 border border-border rounded-lg text-sm bg-white dark:bg-black text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all shadow-sm"
+                placeholder="Type translation here...">
+            </td>
+          `;
+        }
+        fragment.appendChild(row);
       }
 
-      tbody.appendChild(row);
-    });
+      tbody.appendChild(fragment);
+      currentIndex = endLimit;
 
-    this.updateStats();
+      if (currentIndex < totalKeys) {
+        // Enqueue next sequence frame non-blockingly inside the viewport schedule loop
+        this.renderTimeout = requestAnimationFrame(renderNextChunk);
+      }
+    };
+
+    // Trigger initial chunk push instantly
+    renderNextChunk();
   },
 
   setTranslatedValue(el) {
@@ -520,6 +606,8 @@ const app = {
     } else {
       this.translated[key] = el.value;
     }
+    // Evict this isolated key from statusCache to force a fresh lookup on runtime updates
+    delete this.statusCache[key];
     return key;
   },
 
@@ -532,8 +620,10 @@ const app = {
     const key = this.setTranslatedValue(el);
     this.saveState(CONFIG.LANGUAGE);
     const row = document.getElementById(`row-${key}`);
-    const status = this.getStatus(key);
-    row.className = status.class;
+    if (row) {
+      const status = this.getStatus(key);
+      row.className = status.class;
+    }
   },
 
   debouncedSave() {
@@ -544,47 +634,29 @@ const app = {
   },
 
   onKeydown(event, el) {
-    // Identify the input by DOM element, not by key — a plural key now has
-    // multiple inputs (one per quantity form), so looking up "the input with
-    // this key" would always land on the first form and break navigation.
-    const inputs = Array.from(document.querySelectorAll(".translation-cell input"));
+    const inputs = Array.from(document.querySelectorAll("#tbody input"));
     const currentIdx = inputs.indexOf(el);
 
     if (event.key === "Enter") {
       event.preventDefault();
-      if (currentIdx < inputs.length - 1) {
-        inputs[currentIdx + 1].focus();
-      }
+      if (currentIdx < inputs.length - 1) inputs[currentIdx + 1].focus();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      if (currentIdx > 0) {
-        inputs[currentIdx - 1].focus();
-      }
+      if (currentIdx > 0) inputs[currentIdx - 1].focus();
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
-      if (currentIdx < inputs.length - 1) {
-        inputs[currentIdx + 1].focus();
-      }
-    } else if (event.key === "Tab") {
-      if (event.shiftKey && currentIdx > 0) {
-        event.preventDefault();
-        inputs[currentIdx - 1].focus();
-      } else if (!event.shiftKey && currentIdx < inputs.length - 1) {
-        event.preventDefault();
-        inputs[currentIdx + 1].focus();
-      }
+      if (currentIdx < inputs.length - 1) inputs[currentIdx + 1].focus();
     }
   },
 
   updateStats() {
     const keys = Object.keys(this.base);
-    let missing = 0, outdated = 0, completed = 0;
+    let missing = 0, outdated = 0;
 
     keys.forEach(key => {
       const status = this.getStatus(key);
       if (status.type === "missing") missing++;
       else if (status.type === "outdated") outdated++;
-      else if (status.type === "ok") completed++;
     });
 
     document.getElementById("statsTotal").textContent = `Total: ${keys.length}`;
@@ -593,31 +665,16 @@ const app = {
   },
 
   escapeHTML(str) {
-    const map = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    };
+    const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
     return str.replace(/[&<>"']/g, m => map[m]);
   },
 
   escapeXMLText(str) {
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/'/g, "\\'")
-      .replace(/"/g, "&quot;");
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   },
 
   escapeXMLAttr(str) {
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   },
 
   buildXML() {
@@ -630,7 +687,7 @@ const app = {
       if (type === "plural") {
         const trQuantities = this.isPluralValue(trRaw) ? trRaw.quantities : {};
         const quantitiesToWrite = this.PLURAL_ORDER.filter(q => trQuantities[q]);
-        if (quantitiesToWrite.length === 0) return; // skip untranslated
+        if (quantitiesToWrite.length === 0) return;
         lines.push(`    <plurals name="${this.escapeXMLAttr(key)}">`);
         quantitiesToWrite.forEach(q => {
           lines.push(`        <item quantity="${q}">${this.escapeXMLText(trQuantities[q])}</item>`);
@@ -657,7 +714,7 @@ const app = {
 
   exportXML() {
     if (!this.loaded) {
-      alert("Load the strings first before exporting.");
+      alert("No strings loaded to export.");
       return;
     }
     const xml = this.buildXML();
@@ -691,10 +748,7 @@ const app = {
 window.app = app;
 
 function initTranslatorPage() {
-  if (translatorInitialized) {
-    return;
-  }
-
+  if (translatorInitialized) return;
   translatorInitialized = true;
   app.init();
 }
