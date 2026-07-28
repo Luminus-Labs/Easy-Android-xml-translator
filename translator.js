@@ -35,21 +35,25 @@ function validateConfig() {
 
 function showConfigInfo() {
   const info = document.getElementById('configInfo');
+  if (!info) return;
+
   if (!CONFIG.SOURCE_URL) {
     info.classList.add('hidden');
     return;
   }
+
   info.innerHTML = `
     <strong>Configuration:</strong> 
     Language: <code>${CONFIG.LANGUAGE}</code> | 
     Source: <code>${CONFIG.SOURCE_URL.substring(0, 60)}...</code>
     ${CONFIG.TARGET_URL ? ` | Target: <code>${CONFIG.TARGET_URL.substring(0, 60)}...</code>` : ''}
   `;
-  info.classList.remove('hidden');
+  info.classList.add('hidden');
 }
 
 function showError(message) {
-  document.getElementById('loadBtn').disabled = true;
+  const loadBtn = document.getElementById('loadBtn');
+  if (loadBtn) loadBtn.disabled = true;
   document.getElementById('tbody').innerHTML = '';
   const errorState = document.getElementById('errorState');
   document.getElementById('errorMsg').textContent = message;
@@ -66,7 +70,9 @@ const app = {
   filteredKeys: [],
   filter: "all",
   searchTerm: "",
+  ignoreCompleted: false,
   editingKey: null,
+  mobileCompletionVisible: false,
   saveTimeout: null,
   loaded: false,
   
@@ -74,6 +80,8 @@ const app = {
   statusCache: {},      // Caches computed row statuses
   renderChunkSize: 40,   // Number of elements to render per frame burst
   renderTimeout: null,  // Tracks asynchronous chunk execution frames
+  mobileIndex: 0,
+  mobileSwipeStartX: null,
 
   init() {
     const errors = validateConfig();
@@ -81,6 +89,8 @@ const app = {
       showError(errors.join("<br>"));
       return;
     }
+
+    window.addEventListener("resize", () => this.render());
 
     if (CONFIG.SOURCE_URL) {
       showConfigInfo();
@@ -337,6 +347,12 @@ const app = {
     this.applyFilters();
   },
 
+  toggleIgnoreCompleted(checked) {
+    this.ignoreCompleted = checked;
+    this.mobileCompletionVisible = false;
+    this.applyFilters();
+  },
+
   applyFilters() {
     // Drop any scheduled rendering pipeline blocks immediately to protect memory threads
     if (this.renderTimeout) {
@@ -348,6 +364,10 @@ const app = {
 
     let filtered = keys.filter(key => {
       const status = this.getStatus(key);
+      if (this.ignoreCompleted && status.type === "ok") {
+        return false;
+      }
+
       switch (this.filter) {
         case "missing":
           return status.type === "missing";
@@ -376,6 +396,8 @@ const app = {
     });
 
     this.filteredKeys = filtered;
+    this.mobileIndex = 0;
+    this.mobileCompletionVisible = false;
     this.render();
     this.updateStats(); // Compute metrics decoupled from standard loop
   },
@@ -473,21 +495,251 @@ const app = {
     }
   },
 
+  isMobileLayout() {
+    return window.innerWidth < 768 && window.matchMedia("(orientation: portrait)").matches;
+  },
+
+  clampMobileIndex() {
+    if (this.filteredKeys.length === 0) {
+      this.mobileIndex = 0;
+      return;
+    }
+
+    if (this.mobileIndex < 0) this.mobileIndex = 0;
+    if (this.mobileIndex >= this.filteredKeys.length) this.mobileIndex = this.filteredKeys.length - 1;
+  },
+
+  bindMobileSwipeHandlers() {
+    const mobileView = document.getElementById("mobileTranslatorView");
+    if (!mobileView || mobileView.dataset.swipeBound === "true") return;
+
+    mobileView.dataset.swipeBound = "true";
+
+    let startX = null;
+    let startY = null;
+
+    mobileView.addEventListener("touchstart", (event) => {
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+    }, { passive: true });
+
+    mobileView.addEventListener("touchmove", (event) => {
+      if (startX === null || startY === null) return;
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    mobileView.addEventListener("touchend", (event) => {
+      if (startX === null || startY === null) return;
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      startX = null;
+      startY = null;
+
+      if (Math.abs(deltaX) < 60 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+      this.goToMobileItem(deltaX < 0 ? 1 : -1);
+    }, { passive: true });
+  },
+
+  goToMobileItem(direction) {
+    if (this.filteredKeys.length === 0) {
+      this.mobileCompletionVisible = true;
+      this.renderMobileView(0);
+      return;
+    }
+
+    const nextIndex = this.mobileIndex + direction;
+    if (direction > 0 && nextIndex >= this.filteredKeys.length) {
+      this.mobileCompletionVisible = true;
+      this.renderMobileView(0);
+      return;
+    }
+
+    this.mobileCompletionVisible = false;
+    this.mobileIndex = (this.mobileIndex + direction + this.filteredKeys.length) % this.filteredKeys.length;
+    this.renderMobileView(direction);
+  },
+
+  getLanguageName(langCode = CONFIG.LANGUAGE) {
+    const code = (langCode || "fr").toLowerCase();
+    const names = {
+      en: "English",
+      fr: "French",
+      es: "Spanish",
+      de: "German",
+      it: "Italian",
+      pt: "Portuguese",
+      ja: "Japanese",
+      zh: "Chinese",
+      ru: "Russian",
+      ar: "Arabic",
+      ko: "Korean",
+      nl: "Dutch",
+      tr: "Turkish",
+      pl: "Polish",
+      hi: "Hindi",
+      id: "Indonesian"
+    };
+    return names[code] || code.toUpperCase();
+  },
+
+  renderMobileView(direction = 0) {
+    const mobileView = document.getElementById("mobileTranslatorView");
+    if (!mobileView) return;
+
+    this.clampMobileIndex();
+    this.bindMobileSwipeHandlers();
+
+    if (this.mobileCompletionVisible) {
+      mobileView.innerHTML = `
+        <div class="rounded-3xl border border-border bg-surface2 p-6 shadow-sm text-center space-y-4">
+          <div class="text-7xl" role="img" aria-label="party popper">🎉</div>
+          <div class="space-y-2">
+            <h3 class="text-lg font-bold text-primary">You’re all caught up!</h3>
+            <p class="text-sm text-secondary">Everything left to translate is finished. Download the XML and send it to the developer.</p>
+          </div>
+          <button type="button" class="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-black shadow-sm" onclick="app.exportXML()">Download XML</button>
+        </div>
+      `;
+      return;
+    }
+
+    const key = this.filteredKeys[this.mobileIndex];
+    if (!key) {
+      mobileView.innerHTML = "";
+      return;
+    }
+
+    const baseData = this.base[key];
+    const trRaw = this.translated[key];
+    const status = this.getStatus(key);
+    const stored = this.getStoredState(CONFIG.LANGUAGE);
+    const previousBase = stored.basePerKey || {};
+    const prevText = previousBase[key] ? previousBase[key].text : "";
+    const hasChanged = prevText && prevText !== baseData.text;
+    const targetLanguageName = this.getLanguageName(CONFIG.LANGUAGE);
+    const entryClass = direction > 0 ? "mobile-card-enter-left" : direction < 0 ? "mobile-card-enter-right" : "mobile-card-active";
+
+    let badgeColorClass = 'bg-success/10 text-success border border-success/20';
+    if (status.type === 'missing') badgeColorClass = 'bg-error/10 text-error border border-error/20';
+    if (status.type === 'outdated' || status.type === 'placeholder-issue') badgeColorClass = 'bg-warning/10 text-warning border border-warning/20';
+
+    let contentHTML = '';
+    if (baseData.quantities) {
+      const trQuantities = this.isPluralValue(trRaw) ? trRaw.quantities : {};
+      const allQuantities = this.PLURAL_ORDER.filter(q =>
+        baseData.quantities[q] !== undefined || trQuantities[q] !== undefined
+      );
+
+      contentHTML = `
+        <div class="space-y-3">
+          ${allQuantities.map(q => `
+            <label class="block">
+              <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary mb-1">${this.escapeHTML(q)}</div>
+              <textarea
+                data-key="${key}"
+                data-quantity="${q}"
+                onchange="app.onChange(this)"
+                oninput="app.onInput(this)"
+                class="w-full rounded-xl border border-border bg-white dark:bg-black px-3 py-2 text-sm text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                placeholder="Enter ${this.escapeHTML(targetLanguageName)} translation...">${this.escapeHTML(trQuantities[q] || "")}</textarea>
+            </label>
+          `).join("")}
+        </div>
+      `;
+    } else {
+      const tr = typeof trRaw === "string" ? trRaw : "";
+      contentHTML = `
+        <textarea
+          data-key="${key}"
+          onchange="app.onChange(this)"
+          oninput="app.onInput(this)"
+          class="w-full rounded-xl border border-border bg-white dark:bg-black px-3 py-2 text-sm text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          rows="4"
+          placeholder="Enter ${this.escapeHTML(targetLanguageName)} translation...">${this.escapeHTML(tr)}</textarea>
+      `;
+    }
+
+    mobileView.innerHTML = `
+      <div class="space-y-3">
+        <div class="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface2/80 p-3 shadow-sm">
+          <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary">${this.escapeHTML(targetLanguageName)} translation</div>
+          <div class="flex items-center gap-2">
+            <button type="button" class="mobile-nav-btn rounded-full border border-border bg-white dark:bg-black px-3 py-2 text-sm font-semibold text-primary" onclick="app.goToMobileItem(-1)">← Prev</button>
+            <button type="button" class="mobile-nav-btn rounded-full border border-border bg-white dark:bg-black px-3 py-2 text-sm font-semibold text-primary" onclick="app.goToMobileItem(1)">Next →</button>
+          </div>
+        </div>
+
+        <div class="mobile-translation-card rounded-2xl border border-border bg-surface2 p-4 shadow-sm space-y-4 ${entryClass}">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary">Translation ${this.mobileIndex + 1} / ${this.filteredKeys.length}</div>
+              <div class="mt-2 font-mono text-[11px] text-primary break-all">${this.escapeHTML(key)}</div>
+            </div>
+            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeColorClass}">${status.badge}</span>
+          </div>
+
+          <div class="rounded-xl border border-border/70 bg-white/70 dark:bg-black/40 p-3">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary mb-2">English</div>
+            <div class="text-sm text-primary whitespace-pre-wrap leading-6">${this.escapeHTML(baseData.text)}</div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary">${this.escapeHTML(targetLanguageName)} Translation</div>
+            ${contentHTML}
+          </div>
+
+          ${hasChanged ? `<div class="text-xs text-warning border-t border-border/40 pt-2">Previous: ${this.escapeHTML(prevText)}</div>` : ""}
+        </div>
+      </div>
+    `;
+
+    const card = mobileView.querySelector('.mobile-translation-card');
+    if (card) {
+      requestAnimationFrame(() => {
+        card.classList.remove('mobile-card-enter-left', 'mobile-card-enter-right', 'mobile-card-active');
+        card.classList.add('mobile-card-active');
+      });
+    }
+  },
+
   render() {
     const tbody = document.getElementById("tbody");
     const emptyState = document.getElementById("emptyState");
+    const mobileView = document.getElementById("mobileTranslatorView");
+    const tableView = document.getElementById("tableTranslatorView");
 
     this.hideCentralLoading();
 
-    // Clear previous elements instantly
-    tbody.innerHTML = "";
-
     if (this.filteredKeys.length === 0) {
+      if (mobileView) mobileView.innerHTML = "";
+      if (mobileView) mobileView.classList.add("hidden");
+      if (tableView) tableView.classList.add("hidden");
       emptyState.classList.remove("hidden");
       return;
     }
 
     emptyState.classList.add("hidden");
+
+    if (this.isMobileLayout()) {
+      if (tableView) tableView.classList.add("hidden");
+      if (mobileView) mobileView.classList.remove("hidden");
+      this.renderMobileView();
+      return;
+    }
+
+    if (mobileView) mobileView.classList.add("hidden");
+    if (tableView) tableView.classList.remove("hidden");
+
+    // Clear previous elements instantly
+    if (tbody) tbody.innerHTML = "";
 
     // Initiate Non-blocking Asynchronous Chunked Stream Layout Processor
     let currentIndex = 0;
@@ -619,11 +871,7 @@ const app = {
   onChange(el) {
     const key = this.setTranslatedValue(el);
     this.saveState(CONFIG.LANGUAGE);
-    const row = document.getElementById(`row-${key}`);
-    if (row) {
-      const status = this.getStatus(key);
-      row.className = status.class;
-    }
+    this.render();
   },
 
   debouncedSave() {
@@ -735,11 +983,13 @@ const app = {
   },
 
   lock() {
-    document.getElementById("loadBtn").disabled = true;
+    const loadBtn = document.getElementById("loadBtn");
+    if (loadBtn) loadBtn.disabled = true;
   },
 
   unlock() {
-    document.getElementById("loadBtn").disabled = false;
+    const loadBtn = document.getElementById("loadBtn");
+    if (loadBtn) loadBtn.disabled = false;
     const exportBtn = document.getElementById("exportBtn");
     if (exportBtn) exportBtn.disabled = !this.loaded;
   },

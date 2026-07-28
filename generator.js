@@ -185,13 +185,14 @@ document.getElementById('generatorForm').addEventListener('submit', (e) => {
     return;
   }
 
-  if (!selectedLanguage) {
+  const effectiveLanguage = selectedLanguage || LANGUAGES[0];
+  if (!effectiveLanguage) {
     showError('Please select a target language');
     return;
   }
 
   try {
-    const translatorUrl = generateTranslatorUrl(sourceUrl, selectedLanguage.code);
+    const translatorUrl = generateTranslatorUrl(sourceUrl, effectiveLanguage.code);
 
     document.getElementById('generatedUrl').textContent = translatorUrl;
     document.getElementById('outputSection').classList.remove('hidden');
@@ -206,6 +207,16 @@ function initGeneratorPage() {
   if (generatorInitialized) return;
   generatorInitialized = true;
   initLanguageOptions();
+
+  const defaultLang = LANGUAGES[0];
+  if (defaultLang && !selectedLanguage) {
+    const defaultOption = document.querySelector(`#languageOptions .lang-option[data-code="${defaultLang.code}"]`);
+    if (defaultOption) {
+      selectLanguage(defaultLang.code, defaultLang.name, defaultOption);
+    } else {
+      selectedLanguage = defaultLang;
+    }
+  }
 }
 
 window.initGeneratorPage = initGeneratorPage;

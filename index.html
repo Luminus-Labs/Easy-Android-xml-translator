@@ -49,12 +49,9 @@
       <i class="fa-solid fa-language text-accent" aria-hidden="true"></i> Easy Android XML Translator
     </h1>
     <div class="sm:flex-1"></div>
-    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-      <a href="?mode=generator" data-mode-link="generator" class="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-accent/10 data-[mode-link=generator]:bg-accent data-[mode-link=generator]:text-black">Link Generator</a>
-      <a href="?mode=translator" data-mode-link="translator" class="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-accent/10 data-[mode-link=translator]:bg-accent data-[mode-link=translator]:text-black">XML Translator</a>
-      <a href="?mode=about" data-mode-link="about" class="text-sm font-medium px-4 py-2 rounded-lg transition-colors hover:bg-accent/10 data-[mode-link=about]:bg-accent data-[mode-link=about]:text-black">About</a>
-    </div>
   </nav>
+
+  <a href="?mode=about" data-mode-link="about" class="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-black shadow-lg transition-all hover:bg-accent-light">About</a>
 
   <section id="mode-generator" class="mode-panel hidden">
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
@@ -126,19 +123,12 @@
   </section>
 
   <section id="mode-translator" class="mode-panel hidden space-y-6">
+    <div id="mobileTranslatorView" class="block md:hidden mb-2"></div>
+
     <header class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between pb-2">
       <div class="flex flex-wrap items-center gap-2">
-        <button id="loadBtn" onclick="app.load()" class="px-5 py-2 bg-accent hover:bg-accent-light text-black font-bold rounded-lg shadow-md transition-all text-sm">
-          Load Remote Link
-        </button>
-        
-        <label class="px-4 py-2 bg-surface3 border border-border hover:bg-surface2 text-primary font-semibold rounded-lg transition-all text-sm cursor-pointer inline-flex items-center gap-2 shadow-sm">
-          <i class="fa-solid fa-file-import text-accent"></i> Upload Local XML
-          <input type="file" id="localXmlInput" accept=".xml" class="hidden" onchange="app.handleLocalUpload(event)">
-        </label>
-
         <button id="exportBtn" onclick="app.exportXML()" class="px-4 py-2 bg-surface3 border border-border hover:bg-surface2 text-primary font-semibold rounded-lg transition-all text-sm inline-flex items-center gap-2" disabled>
-          <i class="fa-solid fa-download" aria-hidden="true"></i> Export XML
+          <i class="fa-solid fa-download" aria-hidden="true"></i> Download XML
         </button>
       </div>
 
@@ -152,25 +142,32 @@
       </div>
     </header>
 
-    <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between pt-2 border-t border-border/60">
-      <div class="flex flex-wrap gap-1.5">
+    <div class="flex flex-col gap-3 pt-2 border-t border-border/60">
+      <label class="inline-flex items-center gap-3 text-sm font-medium text-secondary">
+        <input id="ignoreCompletedToggle" type="checkbox" class="h-4 w-4 rounded border-border accent-accent" onchange="app.toggleIgnoreCompleted(this.checked)">
+        <span>Hide completed translations</span>
+      </label>
+
+      <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div class="hidden md:flex flex-wrap gap-1.5">
         <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-accent text-primary data-[active=true]:bg-accent data-[active=true]:text-black" data-active="true" onclick="app.setFilter('all', this)">All Strings</button>
         <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-border text-secondary" onclick="app.setFilter('missing', this)">Missing</button>
         <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-border text-secondary" onclick="app.setFilter('outdated', this)">Outdated</button>
         <button class="px-3.5 py-1.5 text-xs font-semibold border rounded-full transition-all bg-white dark:bg-black border-border text-secondary" onclick="app.setFilter('needs-work', this)">Needs Work</button>
       </div>
 
-      <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-secondary w-full sm:w-auto sm:justify-end">
-        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-success/40"></div><span id="statsTotal">Total: 0</span></div>
-        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-error/40"></div><span id="statsMissing">Missing: 0</span></div>
-        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-warning/40"></div><span id="statsOutdated">Outdated: 0</span></div>
-        <span id="statusMsg" class="text-accent font-semibold ml-auto sm:ml-2 bg-accent/5 px-2 py-0.5 rounded border border-accent/20">Idle</span>
+        <div class="flex flex-wrap items-center gap-4 text-xs font-medium text-secondary w-full sm:w-auto sm:justify-end">
+          <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-success/40"></div><span id="statsTotal">Total: 0</span></div>
+          <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-error/40"></div><span id="statsMissing">Missing: 0</span></div>
+          <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-warning/40"></div><span id="statsOutdated">Outdated: 0</span></div>
+          <span id="statusMsg" class="text-accent font-semibold ml-auto sm:ml-2 bg-accent/5 px-2 py-0.5 rounded border border-accent/20">Idle</span>
+        </div>
       </div>
     </div>
 
-    <div class="text-xs text-secondary bg-surface2 p-3 border-l-4 border-accent rounded-r-lg hidden" id="configInfo"></div>
+    <div class="hidden" id="configInfo"></div>
 
-    <div class="overflow-x-auto border border-border rounded-xl shadow-sm bg-white dark:bg-black">
+    <div id="tableTranslatorView" class="hidden md:block overflow-x-auto border border-border rounded-xl shadow-sm bg-white dark:bg-black">
       <table class="w-full border-collapse text-sm text-left">
         <thead class="bg-surface2 sticky top-0 z-10 font-bold text-primary border-b border-border">
           <tr>
@@ -190,7 +187,7 @@
       </div>
       <div id="emptyStateStaticContent" class="space-y-1">
         <h3 class="text-base font-bold text-primary">No localized segments displayed</h3>
-        <p class="text-xs m-0 text-secondary">Click load remote configs or select a file resource locally from storage to translate strings.</p>
+        <p class="text-xs m-0 text-secondary">Open a generated link to start translating strings.</p>
       </div>
     </div>
 

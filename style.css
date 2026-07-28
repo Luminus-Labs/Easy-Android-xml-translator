@@ -83,3 +83,32 @@
     display: none !important;
   }
 }
+
+.mobile-translation-card {
+  touch-action: pan-y;
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.mobile-translation-card textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.mobile-nav-btn {
+  touch-action: manipulation;
+}
+
+.mobile-card-enter-left {
+  opacity: 0;
+  transform: translateX(18px);
+}
+
+.mobile-card-enter-right {
+  opacity: 0;
+  transform: translateX(-18px);
+}
+
+.mobile-card-active {
+  opacity: 1;
+  transform: translateX(0);
+}

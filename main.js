@@ -3,11 +3,12 @@ const APP_MODES = new Set(["generator", "translator", "about"]);
 function getModeFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const explicitMode = params.get("mode");
-  if (APP_MODES.has(explicitMode)) {
-    return explicitMode;
+
+  if (explicitMode === "about") {
+    return "about";
   }
 
-  if (params.has("source") || params.has("target") || params.has("lang")) {
+  if (explicitMode === "translator" || (params.has("source") && params.has("target") && params.has("lang"))) {
     return "translator";
   }
 
