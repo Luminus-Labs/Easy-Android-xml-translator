@@ -313,7 +313,10 @@ const app = {
       }
 
       // Re-use translations from any other language that the translator
-      // has already completed (translation memory).
+      // has already completed (translation memory). Only borrowed
+      // entries are stored in `this.translated`; they will be filtered
+      // out of saveState() so they never overwrite the current language's
+      // own localStorage slot.
       this.applyTranslationMemory();
 
       // Apply page-level RTL direction for languages like Arabic/Hebrew.
@@ -344,9 +347,21 @@ const app = {
 
   saveState(lang) {
     const key = CONFIG.STORAGE_PREFIX + lang;
+
+    // Filter out any borrowed-from-other-language translations so that
+    // memory suggestions are never persisted into the current language's
+    // own localStorage slot. When the user actually edits a borrowed
+    // field, `setTranslatedValue` clears the borrow tag and it becomes
+    // a real translation.
+    const cleanTranslations = {};
+    Object.keys(this.translated).forEach(k => {
+      if (this._borrowedFromLang && this._borrowedFromLang[k]) return;
+      cleanTranslations[k] = this.translated[k];
+    });
+
     const state = {
       basePerKey: this.base,
-      translations: this.translated,
+      translations: cleanTranslations,
       timestamp: Date.now()
     };
     localStorage.setItem(key, JSON.stringify(state));
@@ -664,15 +679,31 @@ const app = {
     }
   },
 
-  /* Translation memory: copy translations from any other language the
-     translator has previously completed when the current target is empty.
-     Provides fuzzy reuse across languages, addressed in improvement #3. */
+  /* Translation memory: when explicitly enabled (opt-in via the URL
+     ?tmem=1 flag or localStorage `translator_tmem=1`), reuse translations
+     from other previously completed languages as a starting point.
+
+     IMPORTANT: translations copied from another language are tagged with
+     a "borrowed" sentinel so they render with a "borrowed" badge in the
+     UI AND are NOT persisted into the current language's storage. This
+     prevents the bug where translations silently overwrite a
+     brand-new slot. */
+  _borrowedFromLang: {},
+
+  isTranslationMemoryEnabled() {
+    try { if (localStorage.getItem(CONFIG.STORAGE_PREFIX + "tmem") === "1") return true; } catch (e) {}
+    try { if (new URLSearchParams(window.location.search).get("tmem") === "1") return true; } catch (e) {}
+    return false;
+  },
+
   applyTranslationMemory() {
+    if (!this.isTranslationMemoryEnabled()) return 0;
     if (!this.base || Object.keys(this.base).length === 0) return 0;
     if (!this.translated) this.translated = {};
 
     const currentLang = CONFIG.LANGUAGE;
     let borrowed = 0;
+    this._borrowedFromLang = {};
 
     Object.keys(localStorage).forEach(storageKey => {
       if (!storageKey.startsWith(CONFIG.STORAGE_PREFIX)) return;
@@ -693,6 +724,7 @@ const app = {
         const candidate = otherState.translations[key];
         if (typeof candidate === "string" && !candidate.trim()) return;
         this.translated[key] = candidate;
+        this._borrowedFromLang[key] = lang;
         borrowed++;
       });
     });
@@ -968,6 +1000,10 @@ const app = {
     } else {
       this.translated[key] = el.value;
     }
+    // The moment the user actually edits a borrowed entry it becomes a
+    // real translation (clear the borrow tag so saveState() will persist
+    // it under the current language's slot).
+    if (this._borrowedFromLang) delete this._borrowedFromLang[key];
     // Evict this isolated key from statusCache to force a fresh lookup on runtime updates
     delete this.statusCache[key];
     return key;
