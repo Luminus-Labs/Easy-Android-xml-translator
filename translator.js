@@ -122,8 +122,9 @@ const app = {
     reader.onload = (e) => {
       try {
         const text = e.target.result;
-        const { map: parsed, types } = this.parseXML(text);
+        const { map: parsed, types, attributes } = this.parseXML(text);
         this.types = types;
+        this.attributes = attributes || {};
 
         this.base = {};
         Object.keys(parsed).forEach(key => {
@@ -139,7 +140,11 @@ const app = {
         });
 
         const stored = this.getStoredState(CONFIG.LANGUAGE);
-        this.translated = stored.translations || {}; 
+        this.translated = stored.translations || {};
+
+        // Re-use translations from any other language that the translator
+        // has already completed (translation memory).
+        this.applyTranslationMemory();
 
         // Invalidate state cache prior to triggering refilter logic
         this.statusCache = {};
@@ -168,6 +173,7 @@ const app = {
 
     const map = {};
     const types = {};
+    const attributes = {}; // stores preserved string attributes (e.g. translatable="false")
 
     const stringElements = xml.querySelectorAll("string");
     stringElements.forEach(node => {
@@ -176,6 +182,15 @@ const app = {
       if (name) {
         map[name] = text;
         types[name] = "string";
+
+        // Preserve a small set of commonly used attributes so they can
+        // be re-emitted in buildXML() unchanged. Add more as needed.
+        const preserved = {};
+        const translatable = node.getAttribute("translatable");
+        if (translatable !== null) preserved.translatable = translatable;
+        const formatted = node.getAttribute("formatted");
+        if (formatted !== null) preserved.formatted = formatted;
+        if (Object.keys(preserved).length > 0) attributes[name] = preserved;
       }
     });
 
@@ -204,7 +219,7 @@ const app = {
       }
     });
 
-    return { map, types };
+    return { map, types, attributes };
   },
 
   PLURAL_ORDER: ["zero", "one", "two", "few", "many", "other"],
@@ -262,8 +277,9 @@ const app = {
       const res = await this.fetchWithCORS(CONFIG.SOURCE_URL);
       const baseText = await res.text();
 
-      const { map: baseParsed, types: baseTypes } = this.parseXML(baseText);
+      const { map: baseParsed, types: baseTypes, attributes } = this.parseXML(baseText);
       this.types = baseTypes;
+      this.attributes = attributes || {};
 
       const stored = this.getStoredState(lang);
 
@@ -295,6 +311,13 @@ const app = {
       } else {
         this.translated = stored.translations || {};
       }
+
+      // Re-use translations from any other language that the translator
+      // has already completed (translation memory).
+      this.applyTranslationMemory();
+
+      // Apply page-level RTL direction for languages like Arabic/Hebrew.
+      this.applyDocumentDirection();
 
       this.saveState(lang);
       this.statusCache = {}; // Invalidate performance metrics cache mapping object
@@ -402,6 +425,26 @@ const app = {
     this.updateStats(); // Compute metrics decoupled from standard loop
   },
 
+  /* Returns true when the base string was explicitly marked
+     translatable="false" by the developer (improvement #9). */
+  isUntranslatable(key) {
+    const attrs = this.attributes && this.attributes[key];
+    return !!(attrs && attrs.translatable === "false");
+  },
+
+  /* Returns true when the translation is byte-identical to the source
+     text. Useful as a hint to the translator that they probably want
+     to mark the string as untranslatable rather than re-translate it. */
+  isIdenticalToSource(key, tr) {
+    const baseData = this.base[key];
+    if (!baseData) return false;
+    if (baseData.quantities) {
+      if (!tr || !this.isPluralValue(tr)) return false;
+      return Object.keys(baseData.quantities).every(q => tr.quantities && tr.quantities[q] === baseData.quantities[q]);
+    }
+    return typeof tr === "string" && tr.trim() !== "" && tr === baseData.text;
+  },
+
   getStatus(key) {
     // Return instantly if configuration parameters have already been calculated
     if (this.statusCache[key]) {
@@ -411,6 +454,18 @@ const app = {
     const baseData = this.base[key];
     const trRaw = this.translated[key];
     let calculatedStatus;
+
+    // Source strings marked translatable="false" are surfaced as their own
+    // status so translators know they can be skipped (improvement #9).
+    if (this.isUntranslatable(key)) {
+      calculatedStatus = {
+        type: "untranslatable",
+        badge: "not translatable",
+        class: "opacity-60 hover:bg-surface2/40 transition-colors"
+      };
+      this.statusCache[key] = calculatedStatus;
+      return calculatedStatus;
+    }
 
     if (baseData.quantities) {
       if (!trRaw || !this.isPluralValue(trRaw) || !trRaw.quantities.other) {
@@ -428,6 +483,9 @@ const app = {
         }
         if (!errorFound) {
           calculatedStatus = this.checkOutdatedState(key, baseData);
+          if (calculatedStatus.type === "ok" && this.isIdenticalToSource(key, trRaw)) {
+            calculatedStatus = { type: "identical", badge: "same as source", class: "bg-info/5 hover:bg-info/10 transition-colors" };
+          }
         }
       }
     } else {
@@ -438,6 +496,9 @@ const app = {
         calculatedStatus = { type: "placeholder-issue", badge: "placeholder mismatch", class: "bg-error/5 hover:bg-error/10 transition-colors" };
       } else {
         calculatedStatus = this.checkOutdatedState(key, baseData);
+        if (calculatedStatus.type === "ok" && this.isIdenticalToSource(key, tr)) {
+          calculatedStatus = { type: "identical", badge: "same as source", class: "bg-info/5 hover:bg-info/10 transition-colors" };
+        }
       }
     }
 
@@ -456,14 +517,33 @@ const app = {
     return { type: "ok", badge: "completed", class: "hover:bg-surface2/20 transition-colors" };
   },
 
+  /* Recognised Android placeholder tokens:
+       - %[index$]conversion  (printf-style)
+       - %[index$]s / %[index$]d (printf)
+       - %1$s, %2$d, ... (positional)
+       - %s, %d, %f, %x  (positional-free)
+       - <xliff:g>, <xliff:xliff:g> (XML markup placeholders) */
+  PLACEHOLDER_REGEX: /%(\d+\$)?[sdifxXoObeEfgGaAcCpn%]/g,
+  XLIFF_REGEX: /<\s*\/?\s*xliff:[a-zA-Z]+(?:\s+[^>]*)?>/g,
+
   extractPlaceholders(str) {
-    const matches = str.match(/%(\d+\$)?[sdifxX]/g) || [];
-    return matches.sort();
+    if (!str) return [];
+    const printf = (str.match(this.PLACEHOLDER_REGEX) || []).slice();
+    const xliff = (str.match(this.XLIFF_REGEX) || []).slice();
+    // Normalise by stripping trailing attributes on xliff tags so <xliff:g id="1">
+    // and <xliff:g> are considered equivalent.
+    const xliffNormalised = xliff.map(tag =>
+      tag.replace(/\s+[a-zA-Z-]+\s*=\s*"[^"]*"/g, '').replace(/\s+/g, ' ').trim()
+    );
+    return [...printf, ...xliffNormalised].sort();
   },
 
   validatePlaceholders(en, tr) {
-    const aStr = this.extractPlaceholders(en).join(",");
-    const bStr = this.extractPlaceholders(tr).join(",");
+    const a = this.extractPlaceholders(en);
+    const b = this.extractPlaceholders(tr);
+    if (a.length !== b.length) return false;
+    const aStr = a.join("|");
+    const bStr = b.join("|");
     return aStr === bStr;
   },
 
@@ -567,27 +647,57 @@ const app = {
     this.renderMobileView(direction);
   },
 
+  /* Display name lookup that delegates to the unified language schema
+     in langs.js so the dropdown and the translator can never drift apart. */
   getLanguageName(langCode = CONFIG.LANGUAGE) {
-    const code = (langCode || "fr").toLowerCase();
-    const names = {
-      en: "English",
-      fr: "French",
-      es: "Spanish",
-      de: "German",
-      it: "Italian",
-      pt: "Portuguese",
-      ja: "Japanese",
-      zh: "Chinese",
-      ru: "Russian",
-      ar: "Arabic",
-      ko: "Korean",
-      nl: "Dutch",
-      tr: "Turkish",
-      pl: "Polish",
-      hi: "Hindi",
-      id: "Indonesian"
-    };
-    return names[code] || code.toUpperCase();
+    if (window.getLanguageDisplayName) {
+      return window.getLanguageDisplayName(langCode, true);
+    }
+    return String(langCode || "").toUpperCase();
+  },
+
+  /* Push the configured language into document direction/lang attributes
+     so RTL scripts (Arabic/Hebrew/Persian/Urdu) flip the entire UI. */
+  applyDocumentDirection() {
+    if (typeof window.applyDocumentDirection === "function") {
+      window.applyDocumentDirection(CONFIG.LANGUAGE);
+    }
+  },
+
+  /* Translation memory: copy translations from any other language the
+     translator has previously completed when the current target is empty.
+     Provides fuzzy reuse across languages, addressed in improvement #3. */
+  applyTranslationMemory() {
+    if (!this.base || Object.keys(this.base).length === 0) return 0;
+    if (!this.translated) this.translated = {};
+
+    const currentLang = CONFIG.LANGUAGE;
+    let borrowed = 0;
+
+    Object.keys(localStorage).forEach(storageKey => {
+      if (!storageKey.startsWith(CONFIG.STORAGE_PREFIX)) return;
+      const lang = storageKey.substring(CONFIG.STORAGE_PREFIX.length);
+      if (!lang || lang === currentLang) return;
+
+      let otherState;
+      try {
+        otherState = JSON.parse(localStorage.getItem(storageKey));
+      } catch (e) {
+        return;
+      }
+      if (!otherState || !otherState.translations) return;
+
+      Object.keys(otherState.translations).forEach(key => {
+        if (this.translated[key]) return; // keep existing work
+        if (!this.base[key]) return;
+        const candidate = otherState.translations[key];
+        if (typeof candidate === "string" && !candidate.trim()) return;
+        this.translated[key] = candidate;
+        borrowed++;
+      });
+    });
+
+    return borrowed;
   },
 
   renderMobileView(direction = 0) {
@@ -952,7 +1062,13 @@ const app = {
       } else {
         const trText = typeof trRaw === "string" ? trRaw : "";
         if (!trText) return;
-        lines.push(`    <string name="${this.escapeXMLAttr(key)}">${this.escapeXMLText(trText)}</string>`);
+
+        // Re-emit any preserved attributes (e.g. translatable="false").
+        const preserved = (this.attributes && this.attributes[key]) || {};
+        const attrParts = Object.keys(preserved).map(a =>
+          ` ${a}="${this.escapeXMLAttr(preserved[a])}"`
+        ).join("");
+        lines.push(`    <string name="${this.escapeXMLAttr(key)}"${attrParts}>${this.escapeXMLText(trText)}</string>`);
       }
     });
 

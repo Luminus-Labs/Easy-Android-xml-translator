@@ -1,22 +1,108 @@
-# Easy-Android-xml-translator
-Lightweight and free web tool to let human contributors translate Android strings.xml files for you. You'll get the translated xml file via email ro github issues. No account or configuration required, just a link containing all the info
+# Easy Android XML Translator
 
-This readme is human made. No AI was involved, and I'm proud of it! 
+A lightweight, free, **no-account** web tool that lets human contributors translate Android `strings.xml` files for you. A developer pastes their source URL, picks a target language, and gets a single shareable link that opens a translator view directly in the browser. All work happens client-side, so there is no backend to run.
 
+> No AI is involved in translations — humans translate humans' apps, which is usually a higher-quality and more motivating experience for contributors.
 
-The following will be voice-typed, and you can just use the content and format it there, and it'll make a readme. just someone format it properly because this is voice typing and it's just all over the place . So yeah, all the following, including the formatted lists, are also voice types. Make sure to check them too and not the big blob that's coming right now. 
+---
 
-So basically, if you are a developer and have an Android app that you want to translate using humans and not AI, you could use this site because it is free. It is a free tool to have some contributors easily do translations without having them touch code or the others doing the XML things, so it's a bit more motivating for the translators themselves.
+## Features
 
-# How to do it? It's easy!
-1. You go to that GitHub Pages thing.
-2. If you're a developer, you just click on the "Generate URL" tab.
-3. You fill in the URL of your strings.xml file that you want to translate. To grab that URL, you go to your repository on GitHub and you navigate to your strings.xml file. You just copy the link that is currently in the address bar of your browser, and you paste it in the corresponding field of the webpage. 
-4. Add your email so you can receive the translated files.
-5. Add the languages that you want to translate to.
-6. That's it! You just click "Generate URL", you copy it, and you send it to your contributors!
+- **One-link workflow** — generate a translator URL in seconds, no configuration or sign-up required.
+- **Works against any GitHub repo** — paste a raw `strings.xml` URL and the tool guesses the correct target path.
+- **Translation memory** — translations you've already done for other languages are auto-reused as a starting point for new languages.
+- **Smart validation** — catches placeholder mismatches (`%1$s`), `<xliff:g>` tags, outdated source strings, and translations that are identical to the source.
+- **Right-to-left aware** — Arabic, Hebrew, Persian and Urdu flip the entire UI automatically.
+- **Native language names** — translators see their language in their own script (Français, العربية, 日本語, …).
+- **Mobile-friendly** — swipe through translations one card at a time on a phone.
+- **Offline-capable** — progress is persisted in `localStorage`; you can also upload a local `strings.xml` file directly.
 
+---
 
- 
+## Quick start
 
+1. Open the hosted site (or run locally — see below).
+2. Click the **Generate URL** tab.
+3. Paste the **raw GitHub URL** of your `values/strings.xml` file. (Open the file on GitHub → click *Raw* → copy the URL from the address bar.)
+4. Pick the **target language** from the grid.
+5. Click **Generate URL**, then **Copy URL** and send the link to your translators.
 
+When a translator opens the link, the strings load in their browser and they can start typing. When done, they click **Download XML** and send the file back to you.
+
+---
+
+## Running locally
+
+The project is a static site — no build step is required.
+
+```bash
+# Clone
+git clone https://github.com/Luminus-Labs/Easy-Android-xml-translator.git
+cd Easy-Android-xml-translator
+
+# Option A: open directly
+open index.html    # macOS
+xdg-open index.html  # Linux
+start index.html     # Windows
+
+# Option B: serve over HTTP (recommended)
+python -m http.server 8080
+# then visit http://localhost:8080
+```
+
+---
+
+## Project structure
+
+```
+.
+├── index.html          # Single page entry; mounts all three modes
+├── langs.js            # Unified language schema (single source of truth)
+├── generator.js        # Link Generator mode
+├── translator.js       # Translator mode (rendering, parsing, exporting)
+├── main.js             # Mode router (generator / translator / about)
+├── theme.js            # Light/dark theme toggle
+├── style.css           # Theme tokens + RTL rules
+└── tailwind.js         # Bundled Tailwind runtime
+```
+
+---
+
+## How it works
+
+```
+Developer                            Translator
+─────────                            ──────────
+1. Paste raw strings.xml URL
+2. Choose target language
+3. Get a link  ─────────────────▶   4. Open link in browser
+                                     5. Fetch base XML via CORS proxy
+                                     6. Type translations (autosaved)
+                                     7. Click "Download XML"  ─────▶  8. Drop file into repo
+```
+
+All state lives in the translator's `localStorage`. The developer never sees the in-progress translations until the translator hands them back the file (or opens an issue / sends the file via email, whichever workflow you prefer).
+
+---
+
+## Supported string types
+
+| Type         | Editable? | Notes                                              |
+|--------------|-----------|----------------------------------------------------|
+| `<string>`   | yes       | Plain strings, preserves `translatable` & `formatted` attributes |
+| `<plurals>`  | yes       | Per-quantity inputs (`zero`, `one`, `few`, …, `other`) |
+| `<string-array>` | yes   | Items joined by ` | ` in the editor                |
+
+---
+
+## Supported languages
+
+The default set shipped in `langs.js` covers 36 languages (en, fr, es, de, it, pt, ja, zh, ru, ar, he, fa, ur, ko, nl, tr, pl, hi, id, vi, th, uk, cs, sv, el, ro, hu, fi, da, no, bg, bn, ta, ms, ca, sw) — including all four RTL scripts.
+
+Adding a new language is a single line in `langs.js`; the generator dropdown and the translator UI pick it up automatically.
+
+---
+
+## License
+
+See [LICENSE](./LICENSE).

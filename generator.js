@@ -1,20 +1,6 @@
-const LANGUAGES = [
-  { code: 'fr', name: 'French (fr)' },
-  { code: 'es', name: 'Spanish (es)' },
-  { code: 'de', name: 'German (de)' },
-  { code: 'it', name: 'Italian (it)' },
-  { code: 'pt', name: 'Portuguese (pt)' },
-  { code: 'ja', name: 'Japanese (ja)' },
-  { code: 'zh', name: 'Chinese (zh)' },
-  { code: 'ru', name: 'Russian (ru)' },
-  { code: 'ar', name: 'Arabic (ar)' },
-  { code: 'ko', name: 'Korean (ko)' },
-  { code: 'nl', name: 'Dutch (nl)' },
-  { code: 'tr', name: 'Turkish (tr)' },
-  { code: 'pl', name: 'Polish (pl)' },
-  { code: 'hi', name: 'Hindi (hi)' },
-  { code: 'id', name: 'Indonesian (id)' },
-];
+/* Languages are provided by langs.js as window.LANGUAGES.
+   Keep an alias so the rest of this file doesn't need to change. */
+const LANGUAGES = window.LANGUAGES || [];
 
 let selectedLanguage = null;
 let generatorInitialized = false;
@@ -25,16 +11,50 @@ function initLanguageOptions() {
     return;
   }
 
+  container.setAttribute('role', 'radiogroup');
+  container.setAttribute('aria-label', 'Target language selection');
+
   LANGUAGES.forEach(lang => {
     const btn = document.createElement('div');
-    // Applied Tailwind styling directly to dynamic DOM creation blocks
     btn.className = 'lang-option p-2.5 border border-border rounded-lg bg-white dark:bg-black text-primary cursor-pointer text-center text-sm font-medium transition-all duration-150 hover:border-accent hover:bg-accent/5';
-    btn.textContent = lang.code.toUpperCase();
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('tabindex', '0');
+    btn.setAttribute('aria-checked', 'false');
+
+    // Show the native name with the code as a small subscript so
+    // translators can recognise their language instantly.
+    const native = lang.nativeName || lang.name;
+    const code = lang.code.toUpperCase();
+    btn.innerHTML = `
+      <div class="leading-tight">${escapeHTML(native)}</div>
+      <div class="text-[10px] font-mono text-secondary mt-0.5">${code}${lang.rtl ? ' · RTL' : ''}</div>
+    `;
+    btn.title = `${lang.name} (${lang.code})${lang.rtl ? ' — Right-to-left' : ''}`;
     btn.dataset.code = lang.code;
-    btn.dataset.name = lang.name;
-    btn.onclick = () => selectLanguage(lang.code, lang.name, btn);
+    btn.dataset.name = `${lang.name} (${native})`;
+
+    const onActivate = () => selectLanguage(lang.code, btn.dataset.name, btn);
+    btn.onclick = onActivate;
+    btn.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onActivate();
+      }
+    });
+
     container.appendChild(btn);
   });
+}
+
+function escapeHTML(str) {
+  const map = {
+    '&': '\u0026',
+    '<': '\u003c',
+    '>': '\u003e',
+    '"': '\u0022',
+    "'": '\u0027'
+  };
+  return String(str).replace(/[&<>"']/g, m => map[m]);
 }
 
 function selectLanguage(code, name, element) {

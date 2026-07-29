@@ -112,3 +112,73 @@
   opacity: 1;
   transform: translateX(0);
 }
+
+/* =========================
+   RTL (Right-to-Left) SUPPORT
+   Triggered automatically when langs.js sets <html dir="rtl">
+   for Arabic, Hebrew, Persian, Urdu, etc. (improvement #14).
+========================= */
+
+html[dir="rtl"] body {
+  text-align: right;
+}
+
+/* Mirror directional icons that should flip with the script. */
+html[dir="rtl"] .fa-arrow-right,
+html[dir="rtl"] .fa-arrow-left {
+  transform: scaleX(-1);
+}
+
+html[dir="rtl"] .fa-chevron-right,
+html[dir="rtl"] .fa-chevron-left {
+  transform: scaleX(-1);
+}
+
+/* Keep the fixed-position About FAB in the visually correct corner. */
+html[dir="rtl"] a[data-mode-link="about"] {
+  right: auto;
+  left: 1rem;
+}
+
+/* Make sure table layouts read naturally in RTL. */
+html[dir="rtl"] table {
+  direction: rtl;
+}
+
+html[dir="rtl"] table thead th,
+html[dir="rtl"] table tbody td {
+  text-align: right;
+}
+
+/* Keep numeric and monospaced content (URLs, IDs, hashes) left-to-right
+   even inside an RTL document. */
+html[dir="rtl"] .font-mono,
+html[dir="rtl"] code,
+html[dir="rtl"] .whitespace-pre-wrap {
+  direction: ltr;
+  unicode-bidi: embed;
+  text-align: left;
+}
+
+/* Text input padding should swap in RTL so the caret starts on the right. */
+html[dir="rtl"] input[type="text"],
+html[dir="rtl"] textarea {
+  text-align: right;
+}
+
+/* Search input icon: was on the left (pl-3); mirror to the right in RTL. */
+html[dir="rtl"] .relative .absolute.inset-y-0.left-0 {
+  left: auto;
+  right: 0;
+}
+
+html[dir="rtl"] .relative input.pl-9 {
+  padding-left: 0.75rem;
+  padding-right: 2.25rem;
+}
+
+/* Status pill / badges stay left-aligned within an RTL cell. */
+html[dir="rtl"] .badge,
+html[dir="rtl"] [data-active="true"] {
+  direction: ltr;
+}
